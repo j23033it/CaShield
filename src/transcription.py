@@ -2,7 +2,7 @@
 
 from faster_whisper import WhisperModel
 import numpy as np
-import src.config as cfg                     # ← cfg を先に読み込む
+import src.config as cfg
 from src.models import TranscriptionResult, AudioData
 
 class TranscriptionEngine:
@@ -19,8 +19,8 @@ class TranscriptionEngine:
             # faster-whisper でモデルをロード
             self._model = WhisperModel(
                 cfg.WHISPER_MODEL,
-                device       = cfg.DEVICE,
-                compute_type = cfg.COMPUTE_TYPE
+                device=cfg.DEVICE,
+                compute_type=cfg.COMPUTE_TYPE
             )
             print(f"Whisperモデル '{cfg.WHISPER_MODEL}' を読み込みました")
         except Exception as e:
@@ -38,32 +38,19 @@ class TranscriptionEngine:
             )
         
         try:
-            return self.transcribe(audio_data.raw_bytes, audio_data.sample_rate, audio_data.channels)
-        except Exception as e:
-            return TranscriptionResult(
-                text="",
-                success=False,
-                error_message=f"文字起こしエラー: {e}"
-            )
-
-    def transcribe(self, raw_bytes: bytes, sample_rate: int, channels: int) -> TranscriptionResult:
-        """
-        bytes -> numpy(float32) へ変換し、faster-whisper で文字起こし
-        """
-        try:
             # 16-bit PCM → float32 [-1, 1]
-            audio = np.frombuffer(raw_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+            audio = np.frombuffer(audio_data.raw_bytes, dtype=np.int16).astype(np.float32) / 32768.0
 
             # ステレオの場合はモノラル平均
-            if channels == 2:
+            if audio_data.channels == 2:
                 audio = audio.reshape(-1, 2).mean(axis=1)
 
             segments, info = self._model.transcribe(
                 audio,
-                language    = cfg.LANGUAGE,
-                beam_size   = cfg.BEAM_SIZE,
-                temperature = cfg.TEMPERATURE,
-                vad_filter  = True
+                language=cfg.LANGUAGE,
+                beam_size=cfg.BEAM_SIZE,
+                temperature=cfg.TEMPERATURE,
+                vad_filter=cfg.VAD_FILTER
             )
 
             text = "".join(seg.text for seg in segments)
@@ -79,10 +66,9 @@ class TranscriptionEngine:
                 metadata={"model": cfg.WHISPER_MODEL, "duration": info.duration},
                 success=True
             )
-
         except Exception as e:
             return TranscriptionResult(
                 text="",
                 success=False,
-                error_message=f"音声処理エラー: {e}"
+                error_message=f"文字起こしエラー: {e}"
             )

@@ -1,4 +1,6 @@
 # main.py
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="ctranslate2")
 
 import threading
 import time
@@ -10,15 +12,9 @@ from pykakasi import kakasi
 from src.transcriber import transcribe
 
     
-    
 def setup_kakasi():
     """ひらがな変換器を初期化"""
-    kks = kakasi()
-    kks.setMode("J", "H")  # J(漢字) から H(ひらがな) へ
-    kks.setMode("K", "H")  # K(カタカナ) から H(ひらがな) へ
-    kks.setMode("E", "H")  # E(英字) を H(ひらがな) へ
-    return kks
-
+    return kakasi()
 def convert_to_hiragana(text, kks):
     """テキストをひらがなに変換"""
     return "".join([item['hira'] for item in kks.convert(text)])
