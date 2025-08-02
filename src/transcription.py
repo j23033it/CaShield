@@ -1,12 +1,13 @@
-# src/transcription.py
+
 
 from faster_whisper import WhisperModel
 import numpy as np
+import src.config as cfg                     # ← cfg を先に読み込む
 from src.models import TranscriptionResult, AudioData
 
 class TranscriptionEngine:
-    def __init__(self, model_name: str = "tiny", language: str = "ja"):
-        self.model_name = model_name
+    def __init__(self, language: str = "ja"):
+        self.model_name = cfg.WHISPER_MODEL
         self.language = language
         self._model = None
     
@@ -15,12 +16,13 @@ class TranscriptionEngine:
         Whisperモデルを読み込む
         """
         try:
+            # faster-whisper でモデルをロード
             self._model = WhisperModel(
                 cfg.WHISPER_MODEL,
                 device       = cfg.DEVICE,
                 compute_type = cfg.COMPUTE_TYPE
             )
-            print(f"Whisperモデル '{self.model_name}' を読み込みました")
+            print(f"Whisperモデル '{cfg.WHISPER_MODEL}' を読み込みました")
         except Exception as e:
             raise RuntimeError(f"Whisperモデルの読み込みに失敗: {e}")
     
@@ -45,28 +47,39 @@ class TranscriptionEngine:
             )
 
     def transcribe(self, raw_bytes: bytes, sample_rate: int, channels: int) -> TranscriptionResult:
-        # raw_bytes -> numpy array（float32, [-1,1]）に変換
+        """
+        bytes -> numpy(float32) へ変換し、faster-whisper で文字起こし
+        """
         try:
-            audio = (
-                np.frombuffer(raw_bytes, dtype=np.int16)
-                .astype(np.float32) / 32768.0
+            # 16-bit PCM → float32 [-1, 1]
+            audio = np.frombuffer(raw_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+
+            # ステレオの場合はモノラル平均
+            if channels == 2:
+                audio = audio.reshape(-1, 2).mean(axis=1)
+
+            segments, info = self._model.transcribe(
+                audio,
+                language    = cfg.LANGUAGE,
+                beam_size   = cfg.BEAM_SIZE,
+                temperature = cfg.TEMPERATURE,
+                vad_filter  = True
             )
-            # Whisper に入力
-            result = self._model.transcribe(audio, language=self.language)
-            text = result.get("text", "")
-            segments = result.get("segments", [])
-            # 簡易的な confidence 計算
-            confidence = None
-            if segments:
-                logprobs = [seg.get("avg_logprob", 0.0) for seg in segments]
-                confidence = float(np.exp(np.mean(logprobs)))
+
+            text = "".join(seg.text for seg in segments)
+
+            # confidence ≒ exp(mean(avg_logprob))
+            logprobs = [seg.avg_logprob for seg in segments if seg.avg_logprob is not None]
+            confidence = float(np.exp(np.mean(logprobs))) if logprobs else None
+
             return TranscriptionResult(
                 text=text,
                 confidence=confidence,
-                segments=segments,
-                metadata=result,
+                segments=list(segments),
+                metadata={"model": cfg.WHISPER_MODEL, "duration": info.duration},
                 success=True
             )
+
         except Exception as e:
             return TranscriptionResult(
                 text="",

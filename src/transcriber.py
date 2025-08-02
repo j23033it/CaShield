@@ -10,7 +10,7 @@ _model = WhisperModel(
 )
 
 def transcribe(audio_path: str) -> str:
-    segments, _ = self._model.transcribe(
+    segments, _ = _model.transcribe(
     audio_path,
     language    = cfg.LANGUAGE,
     beam_size   = cfg.BEAM_SIZE,

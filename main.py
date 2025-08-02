@@ -8,9 +8,7 @@ from src.audio_capture import AudioCapture
 from src.action_manager import ActionManager
 from pykakasi import kakasi
 from src.transcriber import transcribe
-def main():
-    text = transcribe("./assets/sample_audio.wav")
-    print("認識結果:", text)
+
     
     
 def setup_kakasi():
@@ -55,7 +53,7 @@ def main():
     action_mgr = ActionManager("assets/alert.wav")
 
     # Whisper モデルの読み込み（baseモデルに変更で精度向上）
-    engine = TranscriptionEngine(model_name="base")
+    engine = TranscriptionEngine()
     print("[情報] Whisperモデルを読み込み中...")
     engine.load_model()
 
