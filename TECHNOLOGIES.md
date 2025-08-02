@@ -20,7 +20,7 @@
 | **threading** | 音声の録音と文字起こし処理を並列で実行するために使用されます。 | `main.py` |
 | **time** | 処理の待機やタイムスタンプの取得に使用されます。 | `main.py` |
 | **os** | ファイルパスの操作や、設定ファイルの存在確認などに使用されます。 | `main.py` |
-| **wave** | `PyAudio`で録音した音声データをWAV形式で一時的に保存するために使用されます。 | `src/audio_capture.py` |
+| **wave** | `PyAudio`で録音about:blank#blockedした音声データをWAV形式で一時的に保存するために使用されます。 | `src/audio_capture.py` |
 | **datetime** | 検出ログにタイムスタンプを記録するために使用されます。 | `src/action_manager.py` |
 | **warnings** | 特定の警告メッセージ（ctranslate2のUserWarningなど）を非表示にするために使用されます。 | `main.py` |
 
