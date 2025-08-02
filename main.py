@@ -8,7 +8,11 @@ from src.audio_capture import AudioCapture
 from src.action_manager import ActionManager
 from pykakasi import kakasi
 from src.transcriber import transcribe
-
+def main():
+    text = transcribe("./assets/sample_audio.wav")
+    print("認識結果:", text)
+    
+    
 def setup_kakasi():
     """ひらがな変換器を初期化"""
     kks = kakasi()

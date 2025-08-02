@@ -15,7 +15,11 @@ class TranscriptionEngine:
         Whisperモデルを読み込む
         """
         try:
-            self._model = whisper.load_model(self.model_name)
+            self._model = WhisperModel(
+                cfg.WHISPER_MODEL,
+                device       = cfg.DEVICE,
+                compute_type = cfg.COMPUTE_TYPE
+            )
             print(f"Whisperモデル '{self.model_name}' を読み込みました")
         except Exception as e:
             raise RuntimeError(f"Whisperモデルの読み込みに失敗: {e}")

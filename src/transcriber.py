@@ -10,12 +10,11 @@ _model = WhisperModel(
 )
 
 def transcribe(audio_path: str) -> str:
-    segments, _ = _model.transcribe(
-        audio_path,
-        language    = cfg.LANGUAGE,
-        beam_size   = cfg.BEAM_SIZE,
-        temperature = cfg.TEMPERATURE,
-        vad_filter  = True
+    segments, _ = self._model.transcribe(
+    audio_path,
+    language    = cfg.LANGUAGE,
+    beam_size   = cfg.BEAM_SIZE,
+    temperature = cfg.TEMPERATURE,
+    vad_filter  = True
     )
-    # 全セグメントのテキストを連結して返す
-    return "".join(seg.text for seg in segments)
+    text = "".join(seg.text for seg in segments)
