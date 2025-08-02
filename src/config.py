@@ -22,3 +22,12 @@ STATUS_RECORDING = "音声を検知。録音中..."
 STATUS_TRANSCRIBING = "文字起こし中..."
 STATUS_ACTION = "キーワードを検知！"
 STATUS_ERROR = "エラーが発生しました。"
+
+
+# Whisper settings
+WHISPER_MODEL = "large-v3"
+DEVICE        = "cpu"      # GPU があれば "cuda"
+COMPUTE_TYPE  = "int8"     # "float16" でも可（GPU）
+LANGUAGE      = "ja"
+BEAM_SIZE     = 5
+TEMPERATURE   = 0.0

@@ -7,6 +7,7 @@ from src.transcription import TranscriptionEngine
 from src.audio_capture import AudioCapture
 from src.action_manager import ActionManager
 from pykakasi import kakasi
+from src.transcriber import transcribe
 
 def setup_kakasi():
     """ひらがな変換器を初期化"""

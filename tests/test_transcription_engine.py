@@ -10,8 +10,8 @@ class DummyModel:
 
 @pytest.fixture(autouse=True)
 def patch_whisper(monkeypatch):
-    import whisper
-    monkeypatch.setattr(whisper, "load_model", lambda name: DummyModel())
+    from faster_whisper import WhisperModel
+    monkeypatch.setattr(WhisperModel, "load_model", lambda name: DummyModel())
 
 def test_transcribe_basic():
     engine = TranscriptionEngine(model_name="dummy", language="ja")

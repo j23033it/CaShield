@@ -1,6 +1,6 @@
 # src/transcription.py
 
-import whisper
+from faster_whisper import WhisperModel
 import numpy as np
 from src.models import TranscriptionResult, AudioData
 
