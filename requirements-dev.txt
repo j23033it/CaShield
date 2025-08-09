@@ -1,0 +1,7 @@
+pytest>=8,<9
+# optional playback helpers during development
+pygame>=2.5,<3
+playsound>=1.3,<2
+# If you keep legacy openai-whisper checks elsewhere, uncomment below
+# openai-whisper
+

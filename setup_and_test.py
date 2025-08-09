@@ -57,10 +57,10 @@ def check_microphone():
         # デフォルトの入力デバイスをテスト
         try:
             stream = p.open(format=pyaudio.paInt16,
-                          channels=1,
-                          rate=16000,
-                          input=True,
-                          frames_per_buffer=1024)
+                        channels=1,
+                        rate=16000,
+                        input=True,
+                        frames_per_buffer=1024)
             stream.close()
             print("✅ マイクが利用可能です")
             result = True
@@ -75,16 +75,17 @@ def check_microphone():
         print("❌ PyAudioがインストールされていません")
         return False
 
-def test_whisper():
-    """Whisperモデルの動作確認"""
-    print("🗣️ Whisperモデルの動作確認中...")
+def test_faster_whisper():
+    """faster-whisper の動作確認"""
+    print("🗣️ faster-whisper の動作確認中...")
     try:
-        import whisper
-        model = whisper.load_model("tiny")
-        print("✅ Whisperモデルが利用可能です")
+        from faster_whisper import WhisperModel
+        # 軽量モデルでロード確認（初回は自動ダウンロードが走ります）
+        _ = WhisperModel("tiny", device="cpu", compute_type="int8")
+        print("✅ faster-whisper が利用可能です")
         return True
     except Exception as e:
-        print(f"❌ Whisperモデルのロードに失敗: {e}")
+        print(f"❌ faster-whisper のロードに失敗: {e}")
         return False
 
 def main():
@@ -98,7 +99,7 @@ def main():
         ("ライブラリインストール", install_requirements),
         ("警告音ファイル生成", create_alert_sound),
         ("マイク動作確認", check_microphone),
-        ("Whisperモデル確認", test_whisper),
+        ("faster-whisper 確認", test_faster_whisper),
     ]
     
     all_passed = True
