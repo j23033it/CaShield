@@ -17,7 +17,7 @@ Raspberry Pi と USB マイクを **レジ周辺に「置くだけ」** で、�
 | **マイク**   | USB コンデンサマイク | 無指向性 / 48 kHz 以上推奨 |
 | **スピーカー** | USB/Bluetooth スピーカー or GPIO ブザー | 警告音用 |
 | **設置場所** | レジ横の平面 | 電源確保必須。ネットはログ転送時のみ任意 |
-| **ソフトウェア** | Python 3.11+, Whisper, PyAudio | `requirements.txt` 参照 |
+| **ソフトウェア** | Python 3.8+（推奨: 3.11+）, faster-whisper, PyAudio | `requirements.txt` 参照 |
 
 > **運用イメージ**  
 > - Pi はレジ付近に常設し、プログラムを **自動起動**（systemd）で 24 h 動かす  
@@ -28,8 +28,8 @@ Raspberry Pi と USB マイクを **レジ周辺に「置くだけ」** で、�
 | 機能                 | 説明 |
 |----------------------|------|
 | 音声の常時キャプチャ | USB マイクでストリーミング録音 |
-| 文字起こし           | Whisper (tiny/base) をローカル実行 |
-| キーワード検知       | `config/keywords.txt` 内の NG ワードと完全一致で判定 |
+| 文字起こし           | faster-whisper をローカル実行（デフォルト: `large-v3`。`tiny`/`base`等に変更可） |
+| キーワード検知       | 認識結果をひらがな化し、`config/keywords.txt` のワードと部分一致で判定 |
 | アクション           | 警告音再生 + テキストログ保存 |
 | CLI 初期設定         | 設定ファイル編集・動作テスト用メニュー |
 
@@ -46,4 +46,8 @@ git clone https://github.com/your-user/kasuhara-pi.git
 cd kasuhara-pi
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-python -m whisper --model tiny   # 初回のみモデル取得
+# 開発時やテストを行う場合（任意）
+# pip install -r requirements-dev.txt
+
+# セットアップと動作確認
+python setup_and_test.py
