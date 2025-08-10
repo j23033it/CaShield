@@ -19,9 +19,9 @@ STATUS_ACTION = "キーワードを検知！"
 STATUS_ERROR = "エラーが発生しました。"
 
 # Whisper settings
-WHISPER_MODEL = "large-v3" # "tiny", "base", "small", "medium", "large-v2", "large-v3"
+WHISPER_MODEL = "small" # "tiny", "base", "small", "medium", "large-v2", "large-v3"
 DEVICE        = "cpu"      # GPU があれば "cuda"
-COMPUTE_TYPE  = "int8"     # "float16" でも可（GPU）
+COMPUTE_TYPE  = "int8"     # CPU: int8/int8_float16, GPU: float16
 LANGUAGE      = "ja"
 BEAM_SIZE     = 5
 TEMPERATURE   = 0.0

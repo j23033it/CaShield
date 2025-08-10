@@ -15,6 +15,7 @@ from src.transcriber import transcribe
 def setup_kakasi():
     """ひらがな変換器を初期化"""
     return kakasi()
+
 def convert_to_hiragana(text, kks):
     """テキストをひらがなに変換"""
     return "".join([item['hira'] for item in kks.convert(text)])
