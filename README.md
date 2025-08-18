@@ -107,6 +107,13 @@ pip install -r requirements.txt
 - GPU（CUDA）があれば `DEVICE=cuda`, `COMPUTE=float16`
 - ビーム幅 `beam_size` を 1–2 にすると更に高速（精度とトレードオフ）
 
+## 今後のバージョンでの実装予定
+
+- 音声認識精度の向上
+- db閾値等の判別方法の追加
+- LLMを活用した会話ログをもとにした要約ログ作成
+- フロントエンドの作成とそれに伴うバックエンドの機能追加（取得した会話ログをLLMに渡す処理など）
+
 ## 参考
 
 - 構成の参考: [`j23033it/CaShield`](https://github.com/j23033it/CaShield.git)
