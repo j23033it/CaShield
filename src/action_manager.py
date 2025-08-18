@@ -3,6 +3,9 @@
 import os
 import threading
 from typing import Optional
+import datetime
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
 
 class ActionManager:
     """
@@ -86,13 +89,25 @@ class ActionManager:
         except Exception as e:
             print(f"🚨 [警告音] ビープ音再生エラー: {e}")
     
-    def log_detection(self, detected_words: list, full_text: str):
+    def log_detection(self, detected_words: list, full_text: str, role: str = "customer"):
         """
         検出ログを記録する（将来拡張用）
-        
         Args:
             detected_words: 検出されたトリガーワードのリスト
             full_text: 文字起こしされた全文
+            role: "customer" or "clerk"
         """
         print(f"[ログ] 検出ワード: {detected_words}")
         print(f"[ログ] 全文: {full_text}")
+
+        # 日次ログファイルへ追記
+        try:
+            date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+            ts      = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            role_prefix = "客:" if role == "customer" else "店員:"
+            ng_part = f" [NG:{','.join(detected_words)}]" if detected_words else ""
+            line = f"[{ts}] {role_prefix} {full_text}{ng_part}\n"
+            with open(os.path.join(LOG_DIR, f"{date_str}.txt"), "a", encoding="utf-8") as f:
+                f.write(line)
+        except Exception as e:
+            print(f"[ログ] ファイル書き込み失敗: {e}")

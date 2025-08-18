@@ -94,7 +94,10 @@ def main():
                 if hits:
                     print(f"!! トリガーワード検出: {hits}")
                     action_mgr.play_warning()
-                    action_mgr.log_detection(hits, text_original)
+                    action_mgr.log_detection(hits, text_original, role="customer")
+                else:
+                    # ヒットなしも記録したい場合
+                    action_mgr.log_detection([], text_original, role="customer")
             elif not result.success:
                 print(f"[エラー] {result.error_message}")
             else:

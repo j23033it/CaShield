@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ date }} の会話ログ{% endblock %}
+
+{% block content %}
+  <button class="btn btn-outline-secondary mode-btn" id="modeToggle">🌙</button>
+  <h1 class="mb-4 fw-bold">{{ date }} の会話ログ</h1>
+  <a href="/" class="btn btn-secondary mb-3">← 戻る</a>
+  <input type="text" class="form-control search-box" id="searchInput" placeholder="キーワードで検索...">
+  <div class="chat-container" id="logContainer">
+    {% for text, is_ng, role, time in logs %}
+      <div class="chat-row {{ role }}">
+        {% if role=='customer' %}<img src="{{ url_for('static', filename='customer.png') }}" class="avatar">{% endif %}
+        <div class="bubble {{ role }} {% if is_ng %}ng{% endif %}">
+          <div class="content">{{ text }}</div>
+          {% if is_ng %}<div class="small text-danger mt-1">{{ comfort }}</div>{% endif %}
+          <div class="chat-meta">{{ time }}</div>
+        </div>
+        {% if role=='clerk' %}<img src="{{ url_for('static', filename='clerk.png') }}" class="avatar">{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <script id="initData" type="application/json">
+    {{ logs|tojson }}
+  </script>
+  <audio id="notifySound" src="{{ url_for('static', filename='notify.mp3') }}" preload="auto"></audio>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const modeBtn = document.getElementById("modeToggle");
+    if (localStorage.getItem("darkMode") === "true") {
+      document.body.classList.add("dark");
+      modeBtn.textContent = "☀️";
+    }
+    modeBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      const isDark = document.body.classList.contains("dark");
+      localStorage.setItem("darkMode", isDark);
+      modeBtn.textContent = isDark ? "☀️" : "🌙";
+    });
+
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+
+    const searchInput = document.getElementById("searchInput");
+    const container = document.getElementById("logContainer");
+    const notifySound = document.getElementById("notifySound");
+    const _items = JSON.parse(document.getElementById("initData").textContent)
+      .map(([text,is_ng,role,time]) => ({text, is_ng, role, time}));
+
+    function renderFiltered(){
+      const keyword = searchInput.value.trim();
+      container.innerHTML = "";
+      _items.forEach(item => {
+        if(keyword && !item.text.includes(keyword)) return;
+        appendItem(item, false);
+      });
+    }
+
+    function appendItem(item, doScroll=true){
+      const row = document.createElement("div");
+      row.className = `chat-row ${item.role}`;
+      const bubble = document.createElement("div");
+      bubble.className = `bubble ${item.role} ${item.is_ng ? 'ng' : ''}`;
+      bubble.innerHTML = `<div class='content'>${item.text}</div>` +
+        (item.is_ng ? `<div class='small text-danger mt-1'>{{ comfort }}</div>` : "") +
+        `<div class='chat-meta'>${item.time}</div>`;
+      if(item.role === 'customer') {
+        row.innerHTML = `<img src="{{ url_for('static', filename='customer.png') }}" class='avatar'>`;
+        row.appendChild(bubble);
+      } else {
+        row.appendChild(bubble);
+        row.innerHTML += `<img src="{{ url_for('static', filename='clerk.png') }}" class='avatar'>`;
+      }
+      container.appendChild(row);
+      if(doScroll) container.scrollTop = container.scrollHeight;
+    }
+
+    searchInput.addEventListener("input", renderFiltered);
+    renderFiltered(); // 初期描画を整理
+
+    (function connect(){
+      const es = new EventSource(`/stream/{{date}}`);
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          _items.push(data);
+          const kw = searchInput.value.trim();
+            if(!kw || data.text.includes(kw)) {
+              appendItem(data);
+              notifySound.currentTime = 0;
+              notifySound.play();
+            }
+            if ("Notification" in window && Notification.permission === "granted") {
+              new Notification("新しい発言", { body: data.text });
+            }
+        } catch(err){ console.error('SSE parse error', err); }
+      };
+      es.onerror = () => {
+        es.close();
+        setTimeout(connect, 3000);
+      };
+    })();
+  </script>
+{% endblock %}
