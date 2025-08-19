@@ -16,6 +16,8 @@ class Snippet:
     ng_word: str
     anchor_time: Optional[str]  # 表示用 "HH:MM:SS"
     turns: List[Turn]
+    lo_index: int
+    hi_index: int
 
 _TIME_RE = re.compile(r"^\[(?P<dt>[\d\-]+\s+[\d:]+)\]\s*(?P<body>.*)$")
 
@@ -111,4 +113,4 @@ def build_window(
 
     anchor_ts = parsed[ng_index][0].strftime("%H:%M:%S") if parsed[ng_index][0] else None
     turns = [Turn(role=r, text=tx, time=ts) for (ts, r, tx) in parsed[lo:hi+1]]
-    return Snippet(ng_word=ng_word, anchor_time=anchor_ts, turns=turns)
+    return Snippet(ng_word=ng_word, anchor_time=anchor_ts, turns=turns, lo_index=lo, hi_index=hi)
