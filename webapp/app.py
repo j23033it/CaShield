@@ -3,7 +3,7 @@ import datetime
 import time
 import json
 from pathlib import Path
-from flask import Flask, render_template, jsonify, request, abort, Response, stream_with_context
+from flask import Flask, render_template, jsonify, request, abort, Response, stream_with_context, redirect, url_for
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -78,6 +78,7 @@ def load_summaries(date: str):
 @app.route("/")
 def index():
     dates = list_dates()
+    # 一覧は要約ページを主導線に
     return render_template("index.html", title="会話ログ一覧", dates=dates)
 
 @app.route("/logs/<date>")
@@ -113,6 +114,15 @@ def api_logs(date):
 def api_summaries(date):
     """NG要約の取得"""
     return jsonify(load_summaries(date))
+
+@app.route("/summaries/<date>")
+def show_summaries(date):
+    # テンプレはクライアント側で /api/summaries/<date> をフェッチ
+    if date not in list_dates():
+        # 存在しない日付なら一覧へ
+        return redirect(url_for("index"))
+    return render_template("summaries.html", title=f"{date} の要約", date=date, comfort=COMFORT_MESSAGE)
+
 
 @app.route("/stream/<date>")
 def stream_logs(date):
