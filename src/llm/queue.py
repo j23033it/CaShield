@@ -62,6 +62,7 @@ class LLMJobRunner:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         out_path = job.out_dir / f"{job.date}.jsonl"
+        line_idx = list(range(snip.lo_index, snip.hi_index + 1))
         record: Dict[str, Any] = {
             "date": job.date,
             "anchor_time": snip.anchor_time,
@@ -73,6 +74,8 @@ class LLMJobRunner:
             "meta": {
                 "model": self.summarizer.cfg.model,
                 "created_at": now,
+                "line_range": [snip.lo_index, snip.hi_index],
+                "line_indices": line_idx
             }
         }
         with out_path.open("a", encoding="utf-8") as f:
