@@ -11,9 +11,9 @@
     {% for text, is_ng, role, time in logs %}
       <div class="chat-row {{ role }}">
         {% if role=='customer' %}<img src="{{ url_for('static', filename='customer.png') }}" class="avatar">{% endif %}
-        <div class="bubble {{ role }} {% if is_ng %}ng{% endif %}">
+        <div class="bubble {{ role }} {% if is_ng %}ng{% endif %}" data-time="{{ time }}">
           <div class="content">{{ text }}</div>
-          {% if is_ng %}<div class="small text-danger mt-1">{{ comfort }}</div>{% endif %}
+          {% if is_ng %}<div class="small text-muted mt-1 summary-slot"></div>{% endif %}
           <div class="chat-meta">{{ time }}</div>
         </div>
         {% if role=='clerk' %}<img src="{{ url_for('static', filename='clerk.png') }}" class="avatar">{% endif %}
@@ -64,8 +64,9 @@
       row.className = `chat-row ${item.role}`;
       const bubble = document.createElement("div");
       bubble.className = `bubble ${item.role} ${item.is_ng ? 'ng' : ''}`;
++     bubble.setAttribute('data-time', item.time || "");
       bubble.innerHTML = `<div class='content'>${item.text}</div>` +
-        (item.is_ng ? `<div class='small text-danger mt-1'>{{ comfort }}</div>` : "") +
+        (item.is_ng ? `<div class='small text-muted mt-1 summary-slot'></div>` : "") +
         `<div class='chat-meta'>${item.time}</div>`;
       if(item.role === 'customer') {
         row.innerHTML = `<img src="{{ url_for('static', filename='customer.png') }}" class='avatar'>`;
@@ -81,6 +82,29 @@
     searchInput.addEventListener("input", renderFiltered);
     renderFiltered(); // 初期描画を整理
 
+    async function refreshSummaries(){
+      try{
+        const res = await fetch(`/api/summaries/{{date}}`);
+        const data = await res.json();
+        const items = data.items || [];
+        const bubbles = document.querySelectorAll(".bubble.ng");
+        items.forEach(s => {
+          // anchor_time でマッチ（同時刻が複数ある場合は最初を採用）
+          const t = s.anchor_time || "";
+          const target = Array.from(bubbles).find(b => (b.getAttribute("data-time")||"") === t);
+          if(target){
+            const slot = target.querySelector(".summary-slot");
+            if(slot && !slot.dataset.filled){
+              slot.dataset.filled = "1";
+              slot.innerHTML = `<b>要約</b>：${s.summary}<br><b>深刻度</b>：${s.severity} / 5<br><b>対応</b>：${s.action}`;
+            }
+          }
+        });
+      }catch(e){ console.warn("summary fetch failed", e); }
+    }
+    setInterval(refreshSummaries, 5000);
+    refreshSummaries();
+
     (function connect(){
       const es = new EventSource(`/stream/{{date}}`);
       es.onmessage = (e) => {
@@ -92,6 +116,8 @@
               appendItem(data);
               notifySound.currentTime = 0;
               notifySound.play();
+              // 新しいNGが来たらサマリーも取り直す
+              if(data.is_ng){ refreshSummaries(); }
             }
             if ("Notification" in window && Notification.permission === "granted") {
               new Notification("新しい発言", { body: data.text });
