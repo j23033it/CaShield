@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ date }} の要約{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center">
+        <h1 class="mb-3 fw-bold">{{ date }} の要約</h1>
+        <div>
+            <a href="/" class="btn btn-secondary me-2">← 一覧</a>
+            <a href="/logs/{{date}}" class="btn btn-outline-secondary btn-sm">原文（緊急用）</a>
+        </div>
+    </div>
+
+    <div id="sumContainer" class="row g-3"></div>
+    <div class="text-muted small mt-3">※ 要約は数秒ごとに更新されます。</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function fetchSummaries() {
+        const res = await fetch(`/api/summaries/{{date}}`);
+        const data = await res.json();
+        const items = (data.items || []).slice();
+
+        // 並び順：深刻度 desc → 時刻 asc
+        items.sort((a,b) => {
+            const sv = (b.severity||0) - (a.severity||0);
+            if (sv !== 0) return sv;
+            return String(a.anchor_time||"").localeCompare(String(b.anchor_time||""));
+        });
+
+        const root = document.getElementById("sumContainer");
+        root.innerHTML = "";
+        items.forEach(x => {
+            const card = document.createElement("div");
+            card.className = "col-12 col-md-6 col-lg-4";
+            card.innerHTML = `
+                <div class="card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-danger-subtle text-danger border border-danger">深刻度 ${x.severity}/5</span>
+                        <span class="text-muted small">${x.anchor_time || ""}</span>
+                    </div>
+                    <div class="mb-2"><b>NG:</b> ${x.ng_word || ""}</div>
+                    <div class="mb-2"><b>要約:</b> ${x.summary || ""}</div>
+                    <div class="mb-2"><b>対応:</b> ${x.action || ""}</div>
+                </div>`;
+            root.appendChild(card);
+        });
+    }
+    setInterval(fetchSummaries, 5000);
+    fetchSummaries();
+</script>
+{% endblock %}
