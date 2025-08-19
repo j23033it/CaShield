@@ -2,6 +2,7 @@ import os
 import datetime
 import time
 import json
+from pathlib import Path
 from flask import Flask, render_template, jsonify, request, abort, Response, stream_with_context
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
@@ -57,6 +58,21 @@ def parse_log_file(date: str):
             rows.append(parse_log_line(line))
     return rows
 
+def load_summaries(date: str):
+    """logs/summaries/<date>.jsonl を読み込む"""
+    p = Path(LOG_DIR) / "summaries" / f"{date}.jsonl"
+    items = []
+    if p.exists():
+        with p.open(encoding="utf-8") as f:
+            for ln in f:
+                try:
+                    items.append(json.loads(ln))
+                except Exception:
+                    pass
+    # pending/failed は将来拡張（現状は件数を0で返す）
+    return {"date": date, "items": items, "pending": 0, "failed": 0}
+
+
 # -------------------- ルーティング --------------------
 
 @app.route("/")
@@ -92,6 +108,11 @@ def api_logs(date):
         "count_ng": sum(1 for r in rows if r["is_ng"]),
         "comfort": COMFORT_MESSAGE,
     })
+    
+@app.route("/api/summaries/<date>")
+def api_summaries(date):
+    """NG要約の取得"""
+    return jsonify(load_summaries(date))
 
 @app.route("/stream/<date>")
 def stream_logs(date):
