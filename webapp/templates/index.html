@@ -8,11 +8,13 @@
   <div class="row g-3" id="dateContainer">
   {% for d in dates %}
     <div class="col-12 col-md-6 col-lg-4 date-item">
-      <a href="/logs/{{d}}" class="text-decoration-none">
-        <div class="card p-4 shadow-sm h-100">
-          <h5 class="card-title text-center">{{d}}</h5>
+      <div class="card p-4 shadow-sm h-100 d-flex flex-column align-items-center">
+        <h5 class="card-title text-center mb-3">{{d}}</h5>
+        <div class="d-flex gap-2">
+          <a href="/summaries/{{d}}" class="btn btn-primary">要約を見る</a>
+          <a href="/logs/{{d}}" class="btn btn-outline-secondary btn-sm">原文（緊急用）</a>
         </div>
-      </a>
+      </div>
     </div>
   {% endfor %}
   </div>
