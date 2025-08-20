@@ -109,13 +109,12 @@ class GeminiSummarizer:
         while True:
             try:
                 resp = await asyncio.to_thread(
-                    self.client.responses.generate,
+                    self.client.models.generate_content,  # 正: models.generate_content を使用
                     model=self.cfg.model,
-                    input=[content],
+                    contents=[content],                   # 引数名は contents
                     config=self._gen_config,
                 )
-                # 取り出し（output_text 優先、無ければ candidates→parts→text）
-                text = getattr(resp, "output_text", None)
+                text = getattr(resp, "text", None)  # 取り出し（text 優先、無ければ candidates→parts→text）
                 if not text:
                     cand = (getattr(resp, "candidates", []) or [None])[0]
                     if not cand or not getattr(cand, "content", None):
