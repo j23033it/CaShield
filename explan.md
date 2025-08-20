@@ -20,6 +20,11 @@ src/
 scripts/
   rt_stream.py           # リアルタイム監視のエントリ（VAD→ASR→KWS→アクション）
   create_alert_sound.py  # 簡易な警告音ファイル生成スクリプト
+  llm_worker.py          # ログ監視とLLM要約ワーカ
+webapp/
+  app.py                 # Flask Webサーバ
+  templates/             # HTMLテンプレート
+  static/                # CSS, JSファイル
 assets/alert.wav         # 警告音のデフォルトファイル
 config/keywords.txt      # NGワード一覧（1行1語）
 logs/                    # 検出ログの出力（必要に応じて）
@@ -51,6 +56,12 @@ README.md, TECHNOLOGIES.md, requirements.txt
 - `scripts/`
   - `rt_stream.py`: ランタイム構成（`sd_input`→`webrtc VAD`→`ASR`→`KWS`→アクション）。
   - `create_alert_sound.py`: 簡易な警告音（wav）を生成。
+  - `llm_worker.py`: ログ監視とLLM要約ワーカ
+
+- `webapp/`
+  - `app.py`: Flask Webサーバ
+  - `templates/`: HTMLテンプレート
+  - `static/`: CSS, JSファイル
 
 - `assets/`
   - `alert.wav`: デフォルトの警告音。存在しない場合はビープで代替。
@@ -60,6 +71,62 @@ README.md, TECHNOLOGIES.md, requirements.txt
 
 - `logs/`
   - 実行時出力のログ保管用（必要に応じて）。
+
+
+---
+
+## データフロー（リアルタイム → ログ → 要約 → 表示）
+
+1. **音声入力**（`src/audio/sd_input.py`）  
+   - sounddevice の `RawInputStream` で 16kHz/mono/PCM16 をチャンク収集（20–30ms）
+
+2. **VAD**（`src/vad/webrtc.py`）  
+   - WebRTC VAD（aggressiveness 0–3）またはフォールバックで発話区間を抽出  
+   - 前後パディング（prev_ms / post_ms）、短ポーズ連結、最長長さ制限
+
+3. **ASR**（`src/asr/engine.py` / `src/transcription.py`）  
+   - `faster-whisper`（CTranslate2）で日→日（`language="ja"`）認識  
+   - CPU 既定は `int8`、CUDA 環境では `float16` を推奨
+
+4. **KWS**（`src/kws/simple.py`）  
+   - `pykakasi` で**ひらがな化**し `config/keywords.txt` と**部分一致**照合
+
+5. **原文ログ追記**（`scripts/rt_stream.py`）  
+   - `logs/YYYY-MM-DD.txt` に `[YYYY-MM-DD HH:MM:SS] 客/店員: 発話 …` を1行追加  
+   - **NGヒット時**は末尾に `[NG: キーワード]` を付与（→ LLM検知のアンカー）
+
+6. **LLM要約**（`scripts/llm_worker.py` + `src/llm/*`）  
+   - 原文ログを監視し、NG行を基点に**窓取り**（min_sec≥12 / max_sec≤30 / tokens≤1024）  
+   - `client_gemini.py` が `.env` の APIキーを読み、**構造化JSON**を生成：  
+     `{ ng_word, turns[], summary, severity(1–5), action }`  
+   - `logs/summaries/<date>.jsonl` に**1 NG 事象＝1行**で追記  
+   - 失敗は `logs/summaries/<date>.errors.log` と `logs/summaries/errors/*.log` に保存
+
+7. **Web表示**（`webapp/app.py`）  
+   - `/` … 日付一覧  
+   - `/logs/<date>` … 原文表示（初回ロードで全件表示し、SSE `/stream/<date>` で追記。追記時に通知音）  
+   - `/api/logs/<date>` … 原文のJSON配列  
+   - （要約ビューは今後 `/summaries/<date>` でのカード表示に対応予定の設計）
+
+---
+
+## ログ・ファイル形式
+
+### 要約（`logs/summaries/<date>.jsonl`）
+- 1 NG 事象につき **1行の JSON**  
+- 例（概略）：
+```json
+{
+  "date": "2025-08-20",
+  "anchor_time": "13:05:11",
+  "ng_word": "無能",
+  "turns": [{"role":"customer","text":"…","time":"13:05:11"}, ...],
+  "summary": "…",
+  "severity": 3,
+  "action": "…",
+  "meta": {"model":"gemini-1.5-flash-latest","line_range":[345,359], ...}
+}
+
 
 ## ルートの主なファイル
 
