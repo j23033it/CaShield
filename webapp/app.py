@@ -9,6 +9,8 @@ from flask import Flask, render_template, jsonify, request, abort, Response, str
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 COMFORT_MESSAGE = "大丈夫ですよ、あなたは悪くありません。"
+SUM_DIR = os.path.join(LOG_DIR, "summaries")
+os.makedirs(SUM_DIR, exist_ok=True)
 
 app = Flask(__name__)
 
@@ -70,6 +72,19 @@ def parse_log_file(date: str):
             if item:
                 rows.append(item)
     return rows
+
+def load_summaries(date: str):
+    """logs/summaries/<date>.jsonl を読み込んで返す"""
+    path = os.path.join(SUM_DIR, f"{date}.jsonl")
+    items = []
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for ln in f:
+                try:
+                    items.append(json.loads(ln))
+                except Exception:
+                    pass
+    return {"date": date, "items": items, "count": len(items)}
 
 def load_summaries(date: str):
     """logs/summaries/<date>.jsonl を読み込む"""
