@@ -2,6 +2,7 @@ import os
 import datetime
 import time
 import json
+import re
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, abort, Response, stream_with_context, redirect, url_for
 
@@ -28,6 +29,13 @@ def parse_log_line(line: str):
     想定フォーマット: [YYYY-MM-DD HH:MM:SS] 店員: 発話  /  [..] 客: 発話
     """
     original = line.rstrip("\n")
+    s = original.strip()
+    # 空行や「時刻だけ」の行は無視
+    if not s:
+        return None
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", s):
+        return None
+
     timestamp = ""
     rest = original
     if original.startswith("[") and "]" in original:
@@ -45,6 +53,9 @@ def parse_log_line(line: str):
     elif rest.startswith("客:"):
         role = "customer"
         text_part = rest[len("客:"):].lstrip()
+    # 本文が空、または本文自体が時刻だけなら無視
+    if not text_part or re.fullmatch(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", text_part.strip()):
+        return None
     is_ng = "[NG:" in original
     return {"text": text_part, "is_ng": is_ng, "role": role, "time": timestamp}
 
@@ -55,7 +66,9 @@ def parse_log_file(date: str):
     rows = []
     with open(path, encoding="utf-8") as f:
         for line in f:
-            rows.append(parse_log_line(line))
+            item = parse_log_line(line)
+            if item:
+                rows.append(item)
     return rows
 
 def load_summaries(date: str):
@@ -134,17 +147,13 @@ def stream_logs(date):
 
     def generate():
         sent = 0
-        # 初回に既存行を送る場合は以下を追加
+        # 初回は既存行を送らず、位置だけ合わせる（サイレント）
         if os.path.exists(path):
             try:
                 with open(path, encoding="utf-8") as f:
-                    lines = f.readlines()
-                for l in lines:
-                    item = parse_log_line(l)
-                    yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
-                sent = len(lines)
+                    sent = len(f.readlines())
             except Exception:
-                pass
+                sent = 0
         # 以降は追記監視
         while True:
             if os.path.exists(path):
@@ -157,7 +166,8 @@ def stream_logs(date):
                     new_lines = lines[sent:]
                     for l in new_lines:
                         item = parse_log_line(l)
-                        yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
+                        if item:
+                            yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
                     sent = len(lines)
             # ハートビート
             yield ": keep-alive\n\n"
