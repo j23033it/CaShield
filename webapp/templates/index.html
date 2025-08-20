@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}会話ログ一覧{% endblock %}
+
+{% block content %}
+  <h1 class="mb-4 text-center fw-bold">📅 会話ログ一覧</h1>
+  <input type="text" class="form-control search-box" id="dateSearch" placeholder="日付を検索 (YYYY-MM-DD)...">
+  <div class="row g-3" id="dateContainer">
+  {% for d in dates %}
+    <div class="col-12 col-md-6 col-lg-4 date-item">
+      <div class="card p-4 shadow-sm h-100 d-flex flex-column align-items-center">
+        <h5 class="card-title text-center mb-3">{{d}}</h5>
+        <div class="d-flex gap-2">
+          <a href="/summaries/{{d}}" class="btn btn-primary">要約を見る</a>
+          <a href="/logs/{{d}}" class="btn btn-outline-secondary btn-sm">原文（緊急用）</a>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const dateSearch = document.getElementById("dateSearch");
+    const dateItems = document.querySelectorAll(".date-item");
+    dateSearch.addEventListener("input", () => {
+      const keyword = dateSearch.value.trim();
+      dateItems.forEach(item => {
+        const text = item.innerText;
+        if (!keyword || text.includes(keyword)) {
+          item.style.display = "";
+        } else {
+          item.style.display = "none";
+        }
+      });
+    });
+  </script>
+{% endblock %}

@@ -11,6 +11,20 @@ from src.kws.simple import SimpleKWS
 from src.action_manager import ActionManager
 import yaml
 
+LOG_DIR = Path("logs")
+
+def _write_log_line(role: str, text: str, hits: List[str]) -> None:
+    """
+    Webフロントが監視する形式で logs/YYYY-MM-DD.txt に追記する。
+    例: [2025-08-19 14:23:45] 客: 〜 [NG: 土下座, 無能]
+    """
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    date = datetime.now().strftime("%Y-%m-%d")
+    ts   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    who  = "店員" if role == "clerk" else "客"
+    ng   = f" [NG: {', '.join(hits)}]" if hits else ""
+    line = f"[{ts}] {who}: {text}{ng}\n"
+    (LOG_DIR / f"{date}.txt").open("a", encoding="utf-8").write(line)
 
 def load_keywords(path: Path) -> List[str]:
     if not path.exists():
@@ -125,6 +139,8 @@ def main() -> None:
                 asr_ms = (asr_t1 - asr_t0) * 1000.0
 
                 print(f"[utt {utt_ms:.0f}ms] asr={asr_ms:.0f}ms e2e={e2e_ms:.0f}ms text={text}", flush=True)
+                # 原文ログを常に追記（役割は顧客想定。必要なら将来切替）
+                _write_log_line(role="customer", text=text, hits=hits)
                 if hits:
                     print(f"!! hit: {hits}", flush=True)
                     action_mgr.play_warning()
