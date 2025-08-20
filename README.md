@@ -67,18 +67,14 @@ pip install -r requirements.txt
 
 ## 使い方
 
-- シンプル実行（`main.py`）
-  ```bash
-  source venv/bin/activate
-  python main.py
-  ```
+- 音声キャプチャ
+python -m scripts.rt_stream
 
-- リアルタイム実行（VAD + faster-whisper ストリーム）
-  ```bash
-  source venv/bin/activate
-  python scripts/rt_stream.py
-  ```
+- フロント
+python webapp\app.py
 
+- LLM待機
+python -m scripts.llm_worker
 ## 設定
 
 - キーワード: `config/keywords.txt`
@@ -101,11 +97,6 @@ pip install -r requirements.txt
 - 環境変数で上書き（`scripts/rt_stream.py`）
   - `CASHIELD_MODEL`, `CASHIELD_DEVICE`, `CASHIELD_COMPUTE`, `CASHIELD_BEAM`, `CASHIELD_BLOCK_MS`, `CASHIELD_VAD_AGGR`, `CASHIELD_INPUT_DEVICE`
 
-## 性能のヒント
-
-- CPU なら `compute_type=int8` が高速（既定）
-- GPU（CUDA）があれば `DEVICE=cuda`, `COMPUTE=float16`
-- ビーム幅 `beam_size` を 1–2 にすると更に高速（精度とトレードオフ）
 
 ## 参考
 
