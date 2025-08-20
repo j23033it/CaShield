@@ -110,18 +110,22 @@
       es.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
+          // 本文が無い／時刻だけの行は無視（保険）
+          if(!data || !data.text || /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(data.text)) return;
           _items.push(data);
           const kw = searchInput.value.trim();
-            if(!kw || data.text.includes(kw)) {
-              appendItem(data);
+          if(!kw || data.text.includes(kw)) {
+            appendItem(data);
+            // 通知音は NG 行に限定
+            if (data.is_ng) {
               notifySound.currentTime = 0;
               notifySound.play();
-              // 新しいNGが来たらサマリーも取り直す
-              if(data.is_ng){ refreshSummaries(); }
             }
-            if ("Notification" in window && Notification.permission === "granted") {
-              new Notification("新しい発言", { body: data.text });
-            }
+          }
+          if ("Notification" in window && Notification.permission === "granted") {
+              // ブラウザ通知も NG のみ（騒がしさ軽減）
+              if (data.is_ng) new Notification("NG検出", { body: data.text });
+          }
         } catch(err){ console.error('SSE parse error', err); }
       };
       es.onerror = () => {
