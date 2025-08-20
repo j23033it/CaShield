@@ -116,5 +116,27 @@
 補足：窓取りは「発話単位を足しながら min_sec を満たし、max_sec と max_tokens を超えないよう調整」します。
 
 
+| 区分             | モデル名                        | API指定ID（例）                                                                             | ステータス          | 主な用途/特徴         | 無料枠（Free Tier）の上限\*                          |
+| -------------- | --------------------------- | -------------------------------------------------------------------------------------- | -------------- | --------------- | -------------------------------------------- |
+| テキスト出力         | Gemini **2.5 Pro**          | `gemini-2.5-pro`                                                                       | 安定版            | 高精度な推論・コーディング   | **5 RPM / 250k TPM / 100 RPD**               |
+| テキスト出力         | Gemini **2.5 Flash**        | `gemini-2.5-flash`                                                                     | 安定版            | 価格性能バランス・低遅延    | **10 RPM / 250k TPM / 250 RPD**              |
+| テキスト出力         | Gemini **2.5 Flash-Lite**   | `gemini-2.5-flash-lite`                                                                | 安定版            | 最小コスト・高スループット   | **15 RPM / 250k TPM / 1,000 RPD**            |
+| テキスト出力         | Gemini **2.0 Flash**        | `gemini-2.0-flash`                                                                     | 安定版            | 1Mトークン文脈等の次世代機能 | **15 RPM / 1M TPM / 200 RPD**                |
+| テキスト出力         | Gemini **2.0 Flash-Lite**   | `gemini-2.0-flash-lite`                                                                | 安定版            | 低コスト・低遅延        | **30 RPM / 1M TPM / 200 RPD**                |
+| Live API       | **2.5 Flash Live**          | `gemini-live-2.5-flash-preview`                                                        | プレビュー          | 低遅延の音声/映像対話     | **同時3セッション / 1M TPM**（RPD記載なし）               |
+| Live API（音声生成） | **2.5 Flash Native Audio**  | `gemini-2.5-flash-preview-native-audio-dialog` / `...exp-native-audio-thinking-dialog` | プレビュー/実験       | 高品質TTS対話        | **1セッション / 25k or 10k TPM / 5 RPD**          |
+| TTS            | **2.5 Flash Preview TTS**   | `gemini-2.5-flash-preview-tts`                                                         | プレビュー          | 低遅延TTS          | **3 RPM / 10k TPM / 15 RPD**                 |
+| 画像生成           | **2.0 Flash 画像生成（Preview）** | `gemini-2.0-flash-preview-image-generation`                                            | プレビュー          | 会話的画像生成/編集      | **10 RPM / 200k TPM / 100 RPD**              |
+| 埋め込み           | **Gemini Embedding**        | `gemini-embedding-001` 等                                                               | 安定版            | 埋め込み生成          | **100 RPM / 30k TPM / 1,000 RPD**            |
+| 軽量オープン         | **Gemma 3 / 3n**            | `gemma-3` 系                                                                            | 安定版            | 軽量推論            | **30 RPM / 15k TPM / 14,400 RPD**            |
+| 旧世代            | **1.5 Flash/8B/Pro**        | `gemini-1.5-*`                                                                         | **Deprecated** | 2025/9 廃止予定     | 参考値：1.5 Flash=**15 RPM / 250k TPM / 50 RPD** |
 
+
+RPM＝Requests per Minute：1分あたりのAPIリクエスト上限（プロジェクト単位）。 
+Google AI for Developers
+
+TPM＝Tokens per Minute (input)：1分あたりに“入力”として送れるトークン数の上限。 
+Google AI for Developers
+
+RPD＝Requests per Day：1日あたりのAPIリクエスト上限。太平洋時間の真夜中にリセット（日本時間では概ね夏時間=16:00、冬時間=17:00）。
 
