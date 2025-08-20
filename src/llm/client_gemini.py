@@ -96,7 +96,7 @@ class GeminiSummarizer:
             lines.append(f"- {role}{ts}: {t.get('text','')}")
         return "\n".join(lines)
 
-    async def summarize(self, payload: Dict[str, Any]) -> "._ResultAdapter":
+    async def summarize(self, payload: Dict[str, Any]) -> "_ResultAdapter":
         prompt = self._build_prompt(payload)
 
         # google-genai v1: Part.from_text はキーワード引数で text= を渡す
