@@ -55,7 +55,8 @@ async def watch_today(stop: asyncio.Event) -> None:
     keywords = load_keywords()
     seen_count = 0
 
-    print(f"[LLM] watching {log_path} (model={cfg.model})")
+    # モデル名は runner インスタンスから取得するように変更
+    print(f"[LLM] watching {log_path} (model={runner.summarizer.model})")
 
     try:
         while not stop.is_set():
