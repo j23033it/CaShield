@@ -31,6 +31,8 @@ class FasterWhisperEngine:
             condition_on_previous_text=condition_on_previous_text,
             vad_filter=vad_filter,
             initial_prompt=initial_prompt or None,
+            log_prob_threshold=-0.8,
+            no_speech_threshold=0.6
         )
 
     def _pcm16_to_float32(self, pcm16: bytes, channels: int = 1) -> np.ndarray:
