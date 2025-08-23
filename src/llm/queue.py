@@ -98,7 +98,7 @@ class LLMJobRunner:
             "severity": res.severity,
             "action": res.action,
             "meta": {
-                "model": self.summarizer.cfg.model,
+                "model": self.summarizer.model,  # 修正: summarizerインスタンスから直接モデル名を取得
                 "created_at": now,
                 "line_range": [snip.lo_index, snip.hi_index],
                 "line_indices": line_idx,
