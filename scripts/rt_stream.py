@@ -13,6 +13,14 @@ import yaml
 
 LOG_DIR = Path("logs")
 
+# ▼▼▼ 幻覚（ハルシネーション）として頻出するため、フィルタするフレーズを定義 ▼▼▼
+BANNED_HALLUCINATIONS = {
+    "ご視聴ありがとうございました",
+    "ご視聴ありがとうございました。",
+    "チャンネル登録よろしくお願いします",
+    "チャンネル登録よろしくお願いします。",
+}
+
 def _write_log_line(role: str, text: str, hits: List[str]) -> None:
     """
     Webフロントが監視する形式で logs/YYYY-MM-DD.txt に追記する。
@@ -32,10 +40,8 @@ def load_keywords(path: Path) -> List[str]:
     with path.open("r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
 
-
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
-
 
 def main() -> None:
     # Load config YAML if exists
@@ -131,6 +137,13 @@ def main() -> None:
                     if out.get("type") == "final":
                         texts.append(out.get("text", ""))
                 text = "".join(texts).strip()
+                
+                # ▼▼▼ ハルシネーションフィルタ ▼▼▼
+                if text in BANNED_HALLUCINATIONS:
+                    print(f"[フィルタ] 幻覚を検出、無視します: {text}")
+                    continue  # これ以降の処理をスキップして次のutteranceへ
+                # ▲▲▲ フィルタここまで ▲▲▲
+
                 asr_t1 = time.perf_counter()
 
                 # KWS
@@ -154,6 +167,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
