@@ -27,8 +27,16 @@ def safe_log_path(date: str) -> str:
     return os.path.join(LOG_DIR, f"{date}.txt")
 
 def parse_log_line(line: str):
-    """1行のログを dict にして返す。
-    想定フォーマット: [YYYY-MM-DD HH:MM:SS] 店員: 発話  /  [..] 客: 発話
+    """1行の生ログテキストを表示用の辞書へ変換する関数。
+
+    期待する原文フォーマット（例）:
+      [YYYY-MM-DD HH:MM:SS] 客: [FAST] [ID:000001] こんにちは [NG: 土下座]
+
+    画面表示要件:
+      - 文字起こし本文のみを表示（[FAST]/[FINAL]/[ID:xxxx] は非表示）
+      - [NG: …] は本文内に残して表示する（強調は is_ng で実施）
+      - 空行、時刻のみの行、本文が空（タグだけ）の行は除外
+      - 取得日時（timestamp）は保持し、メタ情報として表示
     """
     original = line.rstrip("\n")
     s = original.strip()
@@ -38,15 +46,18 @@ def parse_log_line(line: str):
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", s):
         return None
 
+    # 先頭の [YYYY-MM-DD HH:MM:SS] を抽出
     timestamp = ""
     rest = original
     if original.startswith("[") and "]" in original:
         try:
             timestamp = original[1:original.index("]")]
-            rest = original[original.index("]")+1:].lstrip()
+            rest = original[original.index("]") + 1:].lstrip()
         except Exception:
-            # フォーマット不正時はそのまま
+            # フォーマット不正時はそのまま残す
             pass
+
+    # 発話者（店員/客）を識別し、以降の本文部分を取り出す
     role = "customer"
     text_part = rest
     if rest.startswith("店員:"):
@@ -55,9 +66,24 @@ def parse_log_line(line: str):
     elif rest.startswith("客:"):
         role = "customer"
         text_part = rest[len("客:"):].lstrip()
+
+    # 先頭のタグ類（[FAST]/[FINAL] や [ID:xxxx] など）を除去
+    # 例: "[FINAL] [ID:000123] こんにちは" → "こんにちは"
+    # 先頭で繰り返し除去（タグが複数連続している場合に対応）
+    while True:
+        m = re.match(r"^\[(?:[A-Z]+|ID:[^\]]+)\]\s*", text_part)
+        if not m:
+            break
+        text_part = text_part[m.end():]
+
+    # [NG: ...] マーカーは表示要件により残す（本文の一部として残存させる）
+    text_part = text_part.strip()
+
     # 本文が空、または本文自体が時刻だけなら無視
     if not text_part or re.fullmatch(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", text_part.strip()):
         return None
+
+    # NG 判定は元の行に [NG: が含まれるかで判断（本文からは除外済み）
     is_ng = "[NG:" in original
     return {"text": text_part, "is_ng": is_ng, "role": role, "time": timestamp}
 
