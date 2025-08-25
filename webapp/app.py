@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, abort, Response, stream_with_context, redirect, url_for
+from src.config.filter import is_banned
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -79,8 +80,12 @@ def parse_log_line(line: str):
     # [NG: ...] マーカーは表示要件により残す（本文の一部として残存させる）
     text_part = text_part.strip()
 
-    # 本文が空、または本文自体が時刻だけなら無視
-    if not text_part or re.fullmatch(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", text_part.strip()):
+    # 本文が空、または本文自体が時刻だけ、またはハルシネーション（定型）なら無視
+    if (
+        (not text_part)
+        or re.fullmatch(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", text_part.strip())
+        or is_banned(text_part)
+    ):
         return None
 
     # NG 判定は元の行に [NG: が含まれるかで判断（本文からは除外済み）
