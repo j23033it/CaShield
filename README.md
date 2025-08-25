@@ -17,7 +17,7 @@
 
 - **低レイテンシ音声入力**: `sounddevice` を使用 (16kHz, モノラル, PCM16)。
 - **音声認識 (ASR)**: `faster-whisper` (CTranslate2) をCPU (int8) で高速に実行。
-- **キーワード検出 (KWS)**: 認識テキストをひらがなに変換し、`config/keywords.txt` と部分一致でNGワードを検出。
+- **キーワード検出 (KWS)**: 認識テキストをかな正規化し、rapidfuzz の部分一致で NG ワードを検出。
 - **VAD (音声区間検出)**: `webrtc-vad` を使用し、無音区間をカット。
 - **警告音再生**: `assets/alert.wav` を再生。
 - **ログ記録**: `logs/YYYY-MM-DD.txt` に原文を追記。
@@ -143,7 +143,7 @@ python -m webapp.app
 │   ├── llm_worker.py         # LLM要約ワーカー
 │   └── create_alert_sound.py # 警告音生成
 ├── src/
-│   ├── asr/engine.py         # faster-whisper ラッパー
+│   ├── asr/dual_engine.py    # 二段ASR（FAST/FINAL）
 │   ├── audio/sd_input.py     # 低レイテンシ音声入力
 │   ├── kws/simple.py         # キーワード検出
 │   ├── llm/client_gemini.py  # Geminiクライアント
@@ -153,7 +153,7 @@ python -m webapp.app
 │   ├── app.py                # Flask Webサーバー
 │   ├── static/               # 画像・音声ファイル
 │   └── templates/            # HTMLテンプレート
-├── .env                      # (作成する) APIキーなど
+├── .env                      # (作成する) APIキー（ASR設定はコード内に集約）
 ├── main.py
 ├── requirements.txt
 └── README.md
