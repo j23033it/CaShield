@@ -43,6 +43,7 @@ README.md, TECHNOLOGIES.md, requirements.txt
     - `engine.py`: `faster-whisper` を使った軽量ラッパ。PCM16バイト列を float32 に変換して `model.transcribe()` を実行。
   - `kws/`
     - `simple.py`: 認識テキストをひらがな化し、`keywords.txt` の各語と部分一致で照合。
+    - `keywords.py`: `keywords.txt` を解析し、キーワード一覧と深刻度マップを返す。
   - `vad/`
     - `webrtc.py`: WebRTC VAD を使った発話区間抽出器。前後パディングや短ポーズ連結を実装。
   - ルート直下
@@ -68,7 +69,7 @@ README.md, TECHNOLOGIES.md, requirements.txt
   - `alert.wav`: デフォルトの警告音。存在しない場合はビープで代替。
 
 - `config/`
-  - `keywords.txt`: NGワード。
+  - `keywords.txt`: NGワード（レベル行形式推奨: `level2=[…]`, `level3=[…]`。後方互換で1行1語も可）
 
 - `logs/`
   - 実行時出力のログ保管用（必要に応じて）。
@@ -90,7 +91,7 @@ README.md, TECHNOLOGIES.md, requirements.txt
    - 二段構成：FAST=`small(int8, beam=2)` / FINAL=`large-v3(int8, beam=5)`（コードで固定）
 
 4. **KWS**（`src/kws/fuzzy.py`）  
-   - かな正規化 + `rapidfuzz.partial_ratio` による**部分一致**（既定しきい値=88）
+   - かな正規化 + `rapidfuzz.partial_ratio` による**部分一致**（既定しきい値=88）。深刻度は `config/keywords.txt` のレベル定義に基づく。
 
 5. **原文ログ追記**（`scripts/rt_stream.py`）  
    - `logs/YYYY-MM-DD.txt` に `[YYYY-MM-DD HH:MM:SS] 客/店員: 発話 …` を1行追加  
@@ -98,8 +99,7 @@ README.md, TECHNOLOGIES.md, requirements.txt
 
 6. **LLM要約**（`scripts/llm_worker.py` + `src/llm/*`）  
    - 原文ログを監視し、NG行を基点に**窓取り**（min_sec≥12 / max_sec≤30 / tokens≤1024）  
-   - `client_gemini.py` が `.env` の APIキーを読み、**構造化JSON**を生成：  
-     `{ ng_word, turns[], summary, severity(1–5), action }`  
+   - **構造化JSON**を生成：`{ ng_word, turns[], summary, severity(1–5), action }`（severity は keywords.txt の既定値を採用）
    - `logs/summaries/<date>.jsonl` に**1 NG 事象＝1行**で追記  
    - 失敗は `logs/summaries/<date>.errors.log` と `logs/summaries/errors/*.log` に保存
 

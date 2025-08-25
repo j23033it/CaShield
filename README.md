@@ -33,7 +33,9 @@
 ### 前提条件
 
 - **Python**: 3.11 以上
-- **Gemini API キー**: `.env` ファイルまたは環境変数 (`GEMINI_API_KEY` or `GOOGLE_API_KEY`) に設定。
+- **Gemini API キー**: コード内設定に直接記述します（.envは使用しません）。
+  - 設定ファイル: `src/llm/client_gemini.py`
+  - 変数: `GeminiSummarizer.__init__` 内の `self.api_key` を編集してください。
 - **マイク**: USBマイク (無指向性推奨)。
 - **FFmpeg**: 音声の前処理に必要です。
   - **Raspberry Pi**: `sudo apt install ffmpeg`
@@ -42,16 +44,9 @@
 > [!IMPORTANT]
 > プログラムの実行は、必ずリポジトリのルートディレクトリで `python -m <module_name>` の形式で行ってください。
 
-### .env ファイルの作成
+### APIキーの設定（コード内設定）
 
-リポジトリのルートに `.env` ファイルを作成します (このファイルはGitの管理対象外です)。
-
-```dotenv
-# .env
-GEMINI_API_KEY="<あなたのAPIキー>"
-CASHIELD_GEMINI_MODEL="gemini-1.5-flash-latest"
-CASHIELD_LLM_TEMP=0.1
-```
+エディタで `src/llm/client_gemini.py` を開き、`self.api_key` にAPIキーを設定してください。
 
 ---
 
@@ -86,13 +81,9 @@ pip install -U pip setuptools wheel
 pip install -r requirements.txt
 ```
 
-### 5. `.env` ファイルの作成
+### 5. APIキーの設定（コード内設定）
 
-エディタで `.env` ファイルを開き、APIキーを設定します。
-
-```bash
-nano .env
-```
+エディタで `src/llm/client_gemini.py` を開き、`self.api_key` にAPIキーを設定します。
 
 ---
 
@@ -118,6 +109,20 @@ python -m scripts.llm_worker
 # /logs と /summaries を提供
 python -m webapp.app
 ```
+
+---
+
+## キーワードと深刻度（severity）の扱い（重要）
+
+- キーワード定義ファイル: `config/keywords.txt`
+- 対応フォーマット：
+  - レベル行形式（推奨）
+    - 例: `level2=[黙れ,いい加減にしろ]`, `level3=[殺す,死ね]`
+    - `level<数値>` が深刻度（整数）になります。
+  - 1行1語形式（後方互換）
+    - 深刻度は既定で `3` として扱います。
+- 深刻度は LLM の出力ではなく、上記ファイルで定義された既定値を採用して保存します。
+- 画面表示では、要約カードの「深刻度」がこの既定値に基づいて表示されます。
 
 > [!NOTE]
 > **運用イメージ**:
@@ -153,7 +158,7 @@ python -m webapp.app
 │   ├── app.py                # Flask Webサーバー
 │   ├── static/               # 画像・音声ファイル
 │   └── templates/            # HTMLテンプレート
-├── .env                      # (作成する) APIキー（ASR設定はコード内に集約）
+├── （APIキーはコード内設定: src/llm/client_gemini.py）
 ├── main.py
 ├── requirements.txt
 └── README.md
@@ -182,8 +187,8 @@ python -m venv venv
 pip install -U pip setuptools wheel
 pip install -r requirements.txt
 
-### .env 作成
-notepad .\.env
+### APIキーの設定（コード内設定）
+メモ帳で `src\llm\client_gemini.py` を開き、`self.api_key` に API キーを設定してください。
 
 ### 起動（3プロセス）
 # A: RT監視（必ずリポジトリのルートで -m 実行）
