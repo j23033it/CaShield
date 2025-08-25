@@ -61,10 +61,13 @@ class GeminiSummarizer:
                     ),
                 ),
                 "summary": types.Schema(type=types.Type.STRING),
+                # severity は保存時に keywords.txt の既定値を使うため、
+                # スキーマには残すが必須にはしない
                 "severity": types.Schema(type=types.Type.INTEGER),
                 "action": types.Schema(type=types.Type.STRING),
             },
-            required=["ng_word", "turns", "summary", "severity", "action"],
+            # severity は必須から外す（LLMプロンプトでも要求しない）
+            required=["ng_word", "turns", "summary", "action"],
         )
 
         self._gen_config = types.GenerateContentConfig(
@@ -81,7 +84,8 @@ class GeminiSummarizer:
         lines.append("あなたはカスタマーハラスメント対策の監視AIです。")
         lines.append("与えられた数発話（日本語）のやり取りを読み、次をJSONで出力してください。")
         lines.append("1) ng_word（検知トリガ） 2) turns（そのままエコー）")
-        lines.append("3) summary（簡潔な要約） 4) severity（1=軽微〜5=重大） 5) action（店員への推奨対応）")
+        # severity は keywords.txt の既定値を使用するため、LLMには要求しない
+        lines.append("3) summary（簡潔な要約） 4) action（店員への推奨対応）")
         lines.append("出力は日本語。誇張せず、事実ベースで。")
         lines.append(f"\n[トリガ語候補] {ng}\n")
         lines.append("[会話ログ]")
