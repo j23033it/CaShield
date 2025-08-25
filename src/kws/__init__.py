@@ -1,3 +1,3 @@
-from .simple import SimpleKWS
+from .fuzzy import FuzzyKWS
 
 
