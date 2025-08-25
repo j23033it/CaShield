@@ -21,6 +21,7 @@ class Job:
     ng_index: int      # 基点インデックス
     ng_word: str
     out_dir: Path      # 保存先: logs/summaries
+    severity: int = 3  # 既定深刻度（keywords.txt による上書きを想定）
 
 
 class LLMJobRunner:
@@ -89,13 +90,15 @@ class LLMJobRunner:
         # 保存（JSON Lines）
         out_path = job.out_dir / f"{job.date}.jsonl"
         line_idx = list(range(snip.lo_index, snip.hi_index + 1))
+        # 深刻度は LLM 出力ではなく、既定マッピング（Job.severity）を採用する
         record: Dict[str, Any] = {
             "date": job.date,
             "anchor_time": snip.anchor_time,
-            "ng_word": res.ng_word,
+            # ng_word は LLM 返却ではなくトリガ（抽出）側の値を優先
+            "ng_word": job.ng_word or res.ng_word,
             "turns": [t.model_dump() for t in res.turns],
             "summary": res.summary,
-            "severity": res.severity,
+            "severity": int(job.severity) if job.severity else 3,
             "action": res.action,
             "meta": {
                 "model": self.summarizer.model,  # 修正: summarizerインスタンスから直接モデル名を取得
