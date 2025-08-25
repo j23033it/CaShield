@@ -10,22 +10,26 @@ import asyncio
 import contextlib
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Tuple
 
 from src.llm.queue import LLMJobRunner, Job
 from src.llm.client_gemini import LLMConfig
 from src.llm.windowing import parse_line
+from src.kws.keywords import load_keywords_with_severity
 
 ROOT = Path(__file__).resolve().parent.parent
 LOG_DIR = ROOT / "logs"
 CONF_DIR = ROOT / "config"
 
 
-def load_keywords() -> List[str]:
+def load_keywords_and_severity() -> Tuple[List[str], Dict[str, int]]:
+    """keywords.txt を解析し、(keywords, severity_map) を返す。
+
+    - keywords: KWS/抽出用の語彙リスト
+    - severity_map: 語 → 既定深刻度
+    """
     p = CONF_DIR / "keywords.txt"
-    if not p.exists():
-        return ["土下座", "無能", "死ね"]
-    return [s.strip() for s in p.read_text(encoding="utf-8").splitlines() if s.strip()]
+    return load_keywords_with_severity(p)
 
 
 def find_ng_indices(lines: List[str], keywords: List[str]) -> List[int]:
@@ -52,7 +56,7 @@ async def watch_today(stop: asyncio.Event) -> None:
     runner = LLMJobRunner(out_root=out_root, cfg=cfg)
     worker_task = asyncio.create_task(runner.worker(), name="llm-worker")
 
-    keywords = load_keywords()
+    keywords, severity_map = load_keywords_and_severity()
     seen_count = 0
 
     # モデル名は runner インスタンスから取得するように変更
@@ -71,7 +75,8 @@ async def watch_today(stop: asyncio.Event) -> None:
             for idx in ng_idxs:
                 _, _, txt = parse_line(lines[idx])
                 ng_word = next((k for k in keywords if k in txt), "NG")
-                await runner.put(Job(date=date, lines=lines, ng_index=idx, ng_word=ng_word, out_dir=out_root))
+                sev = severity_map.get(ng_word, 3)
+                await runner.put(Job(date=date, lines=lines, ng_index=idx, ng_word=ng_word, out_dir=out_root, severity=sev))
 
             seen_count = len(lines)
             await asyncio.sleep(1.0)
