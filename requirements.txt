@@ -10,7 +10,6 @@ pykakasi>=2.3
 pytest>=8.2
 sounddevice>=0.4.6
 webrtcvad>=2.0.10
-PyYAML>=6.0
 Flask>=2.3
 google-genai>=1.0.0
 pydantic>=2.7.0
