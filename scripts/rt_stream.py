@@ -4,13 +4,14 @@ import time
 from concurrent.futures import Future
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict
 
 from src.audio.sd_input import SDInput
 from src.vad.webrtc import WebRTCVADSegmenter
 from src.asr.dual_engine import DualASREngine
 from src.config.asr import ASRConfig
 from src.kws.fuzzy import FuzzyKWS
+from src.kws.keywords import load_keywords_with_severity
 from src.action_manager import ActionManager
 
 LOG_DIR = Path("logs")
@@ -77,10 +78,14 @@ def _replace_log_line(entry_id: str, role: str, new_stage: str, text: str, hits:
     return replaced
 
 def load_keywords(path: Path) -> List[str]:
-    if not path.exists():
-        return ["土下座", "無能", "死ね"]
-    with path.open("r", encoding="utf-8") as f:
-        return [line.strip() for line in f if line.strip()]
+    """キーワード一覧（KWS用）を取得。
+
+    仕様:
+    - config/keywords.txt は level 形式/1行1語形式のどちらにも対応
+    - ここでは KWS に必要な語彙配列のみ返す（深刻度は llm_worker で利用）
+    """
+    keywords, _sev_map = load_keywords_with_severity(path)
+    return keywords
 
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
