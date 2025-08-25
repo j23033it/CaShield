@@ -44,6 +44,8 @@ README.md, TECHNOLOGIES.md, requirements.txt
   - `kws/`
     - `simple.py`: 認識テキストをひらがな化し、`keywords.txt` の各語と部分一致で照合。
     - `keywords.py`: `keywords.txt` を解析し、キーワード一覧と深刻度マップを返す。
+  - `config/`
+    - `filter.py`: 既知ハルシネーション（定型文）の除外設定と判定関数
   - `vad/`
     - `webrtc.py`: WebRTC VAD を使った発話区間抽出器。前後パディングや短ポーズ連結を実装。
   - ルート直下
@@ -92,10 +94,12 @@ README.md, TECHNOLOGIES.md, requirements.txt
 
 4. **KWS**（`src/kws/fuzzy.py`）  
    - かな正規化 + `rapidfuzz.partial_ratio` による**部分一致**（既定しきい値=88）。深刻度は `config/keywords.txt` のレベル定義に基づく。
+   - 代表的なハルシネーション（配信締めのあいさつ等）はコードで除外
 
 5. **原文ログ追記**（`scripts/rt_stream.py`）  
    - `logs/YYYY-MM-DD.txt` に `[YYYY-MM-DD HH:MM:SS] 客/店員: 発話 …` を1行追加  
    - **NGヒット時**は末尾に `[NG: キーワード]` を付与（→ LLM検知のアンカー）
+   - FAST/FINAL の双方で、`src/config/filter.py` 定義の禁止フレーズはスキップ
 
 6. **LLM要約**（`scripts/llm_worker.py` + `src/llm/*`）  
    - 原文ログを監視し、NG行を基点に**窓取り**（min_sec≥12 / max_sec≤30 / tokens≤1024）  
