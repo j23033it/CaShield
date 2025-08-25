@@ -7,12 +7,13 @@
 ```
 src/
   audio/sd_input.py      # 低レイテンシ音声入力（sounddevice）
-  asr/engine.py          # faster-whisper ラッパ
-  kws/simple.py          # ひらがな化＋部分一致の簡易KWS
+  asr/dual_engine.py     # faster-whisper 二段ラッパ（FAST/FINAL）
+  kws/fuzzy.py           # かな正規化 + rapidfuzz の KWS
   vad/webrtc.py          # WebRTC VAD による発話区間抽出
   action_manager.py      # 警告音・ログ処理（非ブロッキング）
   audio_capture.py       # PyAudioの簡易キャプチャ（従来互換）
-  config.py              # ASRや動作の基本設定
+  config.py              # 旧設定（一般項目）
+  config/asr.py          # ASR 設定（コード内に集約: FAST/FINAL, VAD など）
   models.py              # データモデル（AudioData/TranscriptionResult）
   status_manager.py      # ステータス管理（スレッドセーフ）
   transcriber.py         # 単発音声の簡易トランスクライブAPI
@@ -67,7 +68,7 @@ README.md, TECHNOLOGIES.md, requirements.txt
   - `alert.wav`: デフォルトの警告音。存在しない場合はビープで代替。
 
 - `config/`
-  - `keywords.txt`: NGワード。任意で `config.yaml` を置くと追加設定を読み込み。
+  - `keywords.txt`: NGワード。
 
 - `logs/`
   - 実行時出力のログ保管用（必要に応じて）。
@@ -84,12 +85,12 @@ README.md, TECHNOLOGIES.md, requirements.txt
    - WebRTC VAD（aggressiveness 0–3）またはフォールバックで発話区間を抽出  
    - 前後パディング（prev_ms / post_ms）、短ポーズ連結、最長長さ制限
 
-3. **ASR**（`src/asr/engine.py` / `src/transcription.py`）  
+3. **ASR**（`src/asr/dual_engine.py` / `src/transcription.py`）  
    - `faster-whisper`（CTranslate2）で日→日（`language="ja"`）認識  
-   - CPU 既定は `int8`、CUDA 環境では `float16` を推奨
+   - 二段構成：FAST=`small(int8, beam=2)` / FINAL=`large-v3(int8, beam=5)`（コードで固定）
 
-4. **KWS**（`src/kws/simple.py`）  
-   - `pykakasi` で**ひらがな化**し `config/keywords.txt` と**部分一致**照合
+4. **KWS**（`src/kws/fuzzy.py`）  
+   - かな正規化 + `rapidfuzz.partial_ratio` による**部分一致**（既定しきい値=88）
 
 5. **原文ログ追記**（`scripts/rt_stream.py`）  
    - `logs/YYYY-MM-DD.txt` に `[YYYY-MM-DD HH:MM:SS] 客/店員: 発話 …` を1行追加  
