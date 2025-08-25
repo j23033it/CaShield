@@ -64,7 +64,7 @@
       row.className = `chat-row ${item.role}`;
       const bubble = document.createElement("div");
       bubble.className = `bubble ${item.role} ${item.is_ng ? 'ng' : ''}`;
-+     bubble.setAttribute('data-time', item.time || "");
+      bubble.setAttribute('data-time', item.time || "");
       bubble.innerHTML = `<div class='content'>${item.text}</div>` +
         (item.is_ng ? `<div class='small text-muted mt-1 summary-slot'></div>` : "") +
         `<div class='chat-meta'>${item.time}</div>`;
