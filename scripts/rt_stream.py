@@ -13,22 +13,11 @@ from src.config.asr import ASRConfig
 from src.kws.fuzzy import FuzzyKWS
 from src.kws.keywords import load_keywords_with_severity
 from src.action_manager import ActionManager
+from src.config.filter import is_banned, BANNED_HALLUCINATIONS
 
 LOG_DIR = Path("logs")
 
-# ▼▼▼ 幻覚（ハルシネーション）として頻出するため、フィルタするフレーズを定義 ▼▼▼
-BANNED_HALLUCINATIONS = {
-    "ご視聴ありがとうございました",
-    "ご視聴ありがとうございました。",
-    "チャンネル登録よろしくお願いします",
-    "チャンネル登録よろしくお願いします。",
-    "チャンネル登録",
-    "チャンネル登録。",
-    "チャンネル登録と高評価",
-    "チャンネル登録と高評価。",
-    "チャンネル登録と高評価よろしくお願いします",
-    "チャンネル登録と高評価よろしくお願いします。",
-}
+# ▼▼▼ 幻覚（ハルシネーション）定型文のフィルタ（集中管理: src/config/filter.py） ▼▼▼
 
 def _append_log_line(role: str, stage: str, entry_id: str, text: str, hits: List[str]) -> None:
     """Append one line to logs/YYYY-MM-DD.txt with stage + [ID:xxxx]."""
@@ -150,9 +139,9 @@ def main() -> None:
                 asr_t0 = time.perf_counter()
                 fast_text = asr.transcribe_fast(utt, channels=1)
                 
-                # ▼▼▼ ハルシネーションフィルタ ▼▼▼
-                if fast_text in BANNED_HALLUCINATIONS:
-                    print(f"[フィルタ] 幻覚を検出、無視します: {fast_text}")
+                # ▼▼▼ ハルシネーションフィルタ（FAST）▼▼▼
+                if is_banned(fast_text):
+                    print(f"[フィルタ] 幻覚(FAST)を検出、無視します: {fast_text}")
                     continue  # これ以降の処理をスキップして次のutteranceへ
                 # ▲▲▲ フィルタここまで ▲▲▲
 
@@ -183,6 +172,10 @@ def main() -> None:
                             final_text: str = f.result()
                         except Exception as e:  # noqa: BLE001
                             final_text = f"<FINAL_ERROR: {e}>"
+                        # ▼▼▼ ハルシネーションフィルタ（FINAL）▼▼▼
+                        if is_banned(final_text):
+                            print(f"[フィルタ] 幻覚(FINAL)を検出、無視します: {final_text}")
+                            return
                         final_hits = kws.detect(final_text)
                         replaced = _replace_log_line(eid, role="customer", new_stage="FINAL", text=final_text, hits=final_hits)
                         status = "replaced" if replaced else "append-fallback"
