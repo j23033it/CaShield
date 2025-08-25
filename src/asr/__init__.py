@@ -1,3 +1,3 @@
-from .engine import FasterWhisperEngine
+from .dual_engine import DualASREngine
 
 
