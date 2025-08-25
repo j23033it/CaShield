@@ -6,7 +6,7 @@
 # 使用技術一覧（最新版）
 
 本プロジェクトで利用している主要技術と使用箇所をまとめます。  
-**実行フロー**：`sounddevice` → `WebRTC VAD` → `faster-whisper` → `KWS（ひらがな化によるキーワード検出）` → 原文ログ → **Gemini 要約** → Web 表示（SSE）
+**実行フロー**：`sounddevice` → `WebRTC VAD` → `faster-whisper（二段: FAST/FINAL）` → `KWS（かな正規化 + rapidfuzz 部分一致）` → 原文ログ → **Gemini 要約** → Web 表示（SSE）
 
 ---
 
@@ -14,11 +14,11 @@
 
 | ライブラリ/モジュール | 概要 | 主な使用ファイル |
 |---|---|---|
-| **faster-whisper** | Whisper を CTranslate2 バックエンドで高速実行 | `src/asr/engine.py`, `src/transcription.py` |
+| **faster-whisper** | Whisper を CTranslate2 バックエンドで高速実行（FAST/FINAL 二段） | `src/asr/dual_engine.py`, `src/transcription.py` |
 | **CTranslate2** | 高速推論エンジン（faster-whisper のバックエンド） | 〃 |
 | **sounddevice** | 低レイテンシ音声入力（RawInputStream） | `src/audio/sd_input.py`, `scripts/rt_stream.py` |
 | **webrtcvad** | 音声区間検出（VAD）／無い場合はフォールバック | `src/vad/webrtc.py`, `scripts/rt_stream.py` |
-| **pykakasi** | 認識テキストの**ひらがな変換**（KWS 前処理） | `src/kws/simple.py` |
+| **pykakasi / rapidfuzz** | かな正規化 + fuzzy 部分一致（KWS 前処理・判定） | `src/kws/fuzzy.py` |
 | **Flask** | Web API / テンプレート / SSE（ログの追記配信） | `webapp/app.py`, `webapp/templates/*` |
 | **google-genai** | Gemini クライアント（構造化JSON生成） | `src/llm/client_gemini.py` |
 | **python-dotenv** | `.env` 読み込み（APIキー等の秘匿設定） | `src/llm/client_gemini.py` |
@@ -35,7 +35,7 @@
 | **time / datetime** | 計測・タイムスタンプ・アンカー時刻 | `scripts/rt_stream.py`, `src/llm/queue.py` |
 | **os / pathlib** | ファイル・環境変数 | 全般 |
 | **json** | JSONL入出力 | `src/llm/queue.py`, Web API |
-| **yaml** | 任意の追加設定ファイル読込 | `scripts/rt_stream.py` |
+| — | — | — |
 | **numpy** | PCM16→float32 変換など | `src/transcription.py`, VADフォールバック |
 
 ---
@@ -44,7 +44,8 @@
 
 - **CPU 環境**：`device=cpu` / `compute_type=int8`（既定）  
 - **GPU（CUDA）**：`device=cuda` / `compute_type=float16` を推奨  
-- **Whisper モデル**：`tiny/base/small/...` は `src/config.py` から（RTは `scripts/rt_stream.py` の読み込み設定に依存）  
+- **ASR 設定（コード内）**：`src/config/asr.py` に FAST/FINAL のモデル・ビーム・VAD 等を集約  
+  - FAST = `small (int8, beam=2)` / FINAL = `large-v3 (int8, beam=5)`（既定）  
 - **Gemini モデル**：`CASHIELD_GEMINI_MODEL`（例：`gemini-2.5-flash-lite`）を `.env` で指定
 
 ---
