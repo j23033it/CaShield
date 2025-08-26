@@ -1,10 +1,31 @@
+"""
+webapp/app.py
+
+Flask による簡易ビューア（ログ/要約表示 + SSE ストリーム）
+
+- 実行方法はどちらでも可：
+  - 推奨: `python -m webapp.app`（リポジトリ直下でモジュール実行）
+  - 直接: `python webapp/app.py`（本ファイルを直接実行）
+
+ 直接実行時はカレントディレクトリが `webapp/` になるため、
+ リポジトリ直下の `src/` を import できるように sys.path を調整する。
+"""
+
 import os
+import sys
 import datetime
 import time
 import json
 import re
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, abort, Response, stream_with_context, redirect, url_for
+
+# --- import path の調整（webapp/ から直接実行しても src/ が読めるようにする）
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    # リポジトリ直下（src/ の親）を import パスに追加
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.config.filter import is_banned
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
