@@ -173,6 +173,22 @@ python -m webapp.app
 └── README.md
 ```
 
+### ディレクトリの役割（抜粋）
+
+- `src/models.py`: データモデル定義。
+  - `AudioData`: 録音バイト列とサンプリング情報を保持（長さ計算などの補助を提供）。
+  - `TranscriptionResult`: ASR 結果（本文、信頼度、セグメント、メタ）を表現。
+  - `AppConfig`: アプリ全体設定（モデル名や言語などの簡易表現）。
+
+- `src/llm/`
+  - `client_gemini.py`: Gemini クライアント。`GeminiSummarizer` と `LLMConfig` を提供。
+    - APIキー・モデル名・温度・max tokens・リトライは「コード内設定」（.env は不使用）。
+    - 出力 JSON のスキーマを定義。`severity` は任意（保存時は keywords の既定値を採用）。
+  - `windowing.py`: LLM に渡す会話窓の構築ロジック。
+    - `Turn`/`Snippet` モデル、`parse_line()`、`build_window()`（`min_sec`/`max_sec`/`max_tokens`を満たすよう拡張）。
+  - `queue.py`: LLM 要約ジョブの実行と保存。
+    - `Job` と `WindowConfig`、`LLMJobRunner` を提供。窓取り→要約→`logs/summaries/<date>.jsonl` へ1行追記。エラーは `*.errors.log` に保存。
+
 ### 起動（3プロセス／別ターミナル or tmux）
 
 # A: RT監視（VAD→ASR→KWS→logs/<date>.txt 追記）
