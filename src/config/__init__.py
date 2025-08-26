@@ -1,29 +1,10 @@
-# src/config (package)
+"""
+src.config パッケージ
 
-# Audio settings
-SAMPLE_RATE = 16000  # Whisperの要件に合わせて16kHzに設定
-CHUNK_SIZE = 1024
-CHANNELS = 1
-FORMAT = "int16"  # pyaudio.paInt16 に対応するNumpyのデータ型
+このディレクトリは設定モジュール群（例: asr.py, filter.py）のパッケージです。
+本ファイルはパッケージ識別のために存在し、具体的な設定値は各モジュールで管理します。
 
-# Action settings
-ALERT_SOUND_PATH = "assets/alert.wav"  # 警告音ファイルのパス
-LOG_FILE_PATH = "logs/harassment_log.txt"
-KEYWORDS_FILE_PATH = "config/keywords.txt" # main.pyのパスと合わせる
-
-# Status messages
-STATUS_LISTENING = "準備完了。音声を待っています..."
-STATUS_RECORDING = "音声を検知。録音中..."
-STATUS_TRANSCRIBING = "文字起こし中..."
-STATUS_ACTION = "キーワードを検知！"
-STATUS_ERROR = "エラーが発生しました。"
-
-# Whisper settings
-WHISPER_MODEL = "small" # "tiny", "base", "small", "medium", "large-v2", "large-v3"
-DEVICE        = "cpu"      # GPU があれば "cuda"
-COMPUTE_TYPE  = "int8"     # CPU: int8/int8_float16, GPU: float16
-LANGUAGE      = "ja"
-BEAM_SIZE     = 5
-TEMPERATURE   = 0.0
-VAD_FILTER    = True
-
+注意:
+- 旧来の定数（SAMPLE_RATE 等）は `src/config/asr.py` の ASRConfig に統合済み。
+- ここにグローバル定数を増やさず、用途別の設定オブジェクトに集約してください。
+"""
