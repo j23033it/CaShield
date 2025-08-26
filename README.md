@@ -178,7 +178,7 @@ python -m webapp.app
 # A: RT監視（VAD→ASR→KWS→logs/<date>.txt 追記）
 python -m scripts.rt_stream
 # B: Web（http://0.0.0.0:5000）
-python webapp/app.py
+python -m webapp.app
 # C: LLMワーカー（logs/summaries/<date>.jsonl を生成）
 python -m scripts.llm_worker
 
@@ -203,7 +203,7 @@ pip install -r requirements.txt
 # A: RT監視（必ずリポジトリのルートで -m 実行）
 python -m scripts.rt_stream
 # B: Web（http://127.0.0.1:5000）
-python .\webapp\app.py
+python -m webapp.app
 # C: LLMワーカー
 python -m scripts.llm_worker
 
