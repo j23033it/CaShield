@@ -21,7 +21,6 @@
 | **pykakasi / rapidfuzz** | かな正規化 + fuzzy 部分一致（KWS 前処理・判定） | `src/kws/fuzzy.py` |
 | **Flask** | Web API / テンプレート / SSE（ログの追記配信） | `webapp/app.py`, `webapp/templates/*` |
 | **google-genai** | Gemini クライアント（構造化JSON生成） | `src/llm/client_gemini.py` |
-| **python-dotenv** | `.env` 読み込み（APIキー等の秘匿設定） | `src/llm/client_gemini.py` |
 
 > 備考：`pygame / winsound` を使う構成もありますが、現行は `action_manager.py` による警告音再生（OS依存）で簡素化しています。
 
@@ -46,7 +45,7 @@
 - **GPU（CUDA）**：`device=cuda` / `compute_type=float16` を推奨  
 - **ASR 設定（コード内）**：`src/config/asr.py` に FAST/FINAL のモデル・ビーム・VAD 等を集約  
   - FAST = `small (int8, beam=2)` / FINAL = `large-v3 (int8, beam=5)`（既定）  
-- **Gemini モデル**：`CASHIELD_GEMINI_MODEL`（例：`gemini-2.5-flash-lite`）を `.env` で指定
+- **Gemini モデル**：`.env` は使用せず、`src/llm/client_gemini.py` の `self.model` に直接記述（例：`gemini-2.5-flash-lite`）
 
 ---
 
@@ -73,48 +72,19 @@
 
 ## セキュリティ・運用
 
-- **秘密鍵**は `.env` に保存し、**Git 管理しない**（`.gitignore` に登録）  
-- `.env` は **`python-dotenv`** によって自動読込。既存の環境変数は上書きしないため、**空の環境変数が残っていると `.env` が効かない**ことに注意  
+- **APIキーはコード内設定**で管理（`.env` は使用しません）。`src/llm/client_gemini.py` の `self.api_key` を設定してください。  
 - 長期運用は **systemd**（Raspberry Pi）で `rt_stream` / `app.py` / `llm_worker` をそれぞれ常駐化
 
 ---
 
-## 環境変数（.env）による設定
+## コード内設定
 
-`.env` ファイルで以下の項目を設定できます。
+`.env` や環境変数は使用せず、以下のコード内で集中管理します。
 
-- **`CASHIELD_GEMINI_MODEL=gemini-2.5-flash-lite`**
-  - **意味**: 利用する Gemini モデル名。軽量モデルは高速・安価ですが、精度は標準的です。
-  - **変更理由**: より高精度が必要な場合（例: `gemini-2.5-pro`）や、さらに軽量化したい場合に調整します。
-  - **推奨値**: 現場での常時監視など、速度とコストを重視する場合は `gemini-2.5-flash-lite` のままが適しています。
-
-- **`CASHIELD_LLM_TEMP=0.1`**
-  - **意味**: 温度（出力のランダム性）。0に近いほど事実ベースで安定し、高いほど表現が多様化します。
-  - **使い分け**: 要約は安定性重視のため `0.0`〜`0.2` が推奨されます（`0.1`は適切）。
-
-- **`CASHIELD_MIN_SEC=12`**
-  - **意味**: NG検知を中心に、LLMに渡す会話の最小秒数。
-  - **狙い**: 短すぎるコンテキストによる誤解釈を防ぎます。12秒以上を確保することで誤判定を抑制します。
-
-- **`CASHIELD_MAX_SEC=30`**
-  - **意味**: 1回の要約対象とする会話の最大秒数。
-  - **狙い**: 長すぎる場合に発生する遅延やコスト増を抑え、文脈と性能のバランスを取ります。
-
-- **`CASHIELD_MAX_TOKENS=512`**
-  - **意味**: LLMに渡すプロンプトの最大トークン数（文字数上限のイメージ）。
-  - **狙い**: 極端に長い会話を適切に切り詰めて、APIエラーや過剰なコストを防ぎます。
-  - **補足**: 窓取り処理は「発話単位を連結しながら `min_sec` を満たし、`max_sec` と `max_tokens` を超えない範囲」でコンテキストを構築します。
-狙い：30秒上限で、文脈は確保しつつ速度/費用をコントロール。
-
-5) CASHIELD_MAX_TOKENS=512
-
-意味：LLM に渡すトークンの上限（文字数上限のイメージ）。
-
-狙い：極端に長い会話を切り詰めて投入。
-
-目安：512トークン ≒ 数百〜千数百文字程度（日本語だと内容により変動）。
-
-補足：窓取りは「発話単位を足しながら min_sec を満たし、max_sec と max_tokens を超えないよう調整」します。
+- Gemini モデル名・温度など: `src/llm/client_gemini.py` の `self.model` / `self.temperature`
+- LLMの出力最大トークンやリトライ等: `src/llm/client_gemini.py` の `LLMConfig` クラス
+- ASR（FAST/FINAL）のモデル・ビーム・VAD: `src/config/asr.py` の `ASRConfig` クラス
+- 要約ウィンドウ関連の閾値（秒数やトークン）: `src/llm/queue.py` 内の定数・既定値
 
 
 | 区分             | モデル名                        | API指定ID（例）                                                                             | ステータス          | 主な用途/特徴         | 無料枠（Free Tier）の上限\*                          |
