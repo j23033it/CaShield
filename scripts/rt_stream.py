@@ -1,4 +1,12 @@
-import os
+"""
+scripts/rt_stream.py
+
+リアルタイム監視（VAD → ASR(FAST/FINAL) → KWS → ログ追記 → 警告音）。
+
+- 設定はコード内オブジェクトで集中管理（.envは使用しない）
+- 入力デバイス指定もコード内定数で管理（環境変数依存を廃止）
+"""
+
 import re
 import time
 from concurrent.futures import Future
@@ -16,6 +24,10 @@ from src.action_manager import ActionManager
 from src.config.filter import is_banned, BANNED_HALLUCINATIONS
 
 LOG_DIR = Path("logs")
+
+# --- コード内設定: 入力デバイス ---
+# None の場合はデフォルトデバイスを使用。ID(int) または名称(str) も指定可能。
+INPUT_DEVICE: Optional[int | str] = None
 
 # ▼▼▼ 幻覚（ハルシネーション）定型文のフィルタ（集中管理: src/config/filter.py） ▼▼▼
 
@@ -111,15 +123,8 @@ def main() -> None:
     print(f"Keywords: {', '.join(keywords)}")
     print("Ctrl+C to stop\n")
 
-    # Optional input device (index or name)
-    dev_env = os.environ.get("CASHIELD_INPUT_DEVICE")
-    dev_arg = None
-    if dev_env:
-        try:
-            dev_arg = int(dev_env)
-        except Exception:
-            dev_arg = dev_env
-    sd_in.start(device=dev_arg)
+    # 入力デバイスはコード内設定を使用
+    sd_in.start(device=INPUT_DEVICE)
 
     try:
         while True:
