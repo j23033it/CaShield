@@ -14,7 +14,7 @@
 
 | ライブラリ/モジュール | 概要 | 主な使用ファイル |
 |---|---|---|
-| **faster-whisper** | Whisper を CTranslate2 バックエンドで高速実行（FAST/FINAL 二段） | `src/asr/dual_engine.py`, `src/transcription.py` |
+| **faster-whisper** | Whisper を CTranslate2 バックエンドで高速実行（FAST/FINAL 二段） | `src/asr/dual_engine.py` |
 | **CTranslate2** | 高速推論エンジン（faster-whisper のバックエンド） | 〃 |
 | **sounddevice** | 低レイテンシ音声入力（RawInputStream） | `src/audio/sd_input.py`, `scripts/rt_stream.py` |
 | **webrtcvad** | 音声区間検出（VAD）／無い場合はフォールバック | `src/vad/webrtc.py`, `scripts/rt_stream.py` |
@@ -35,7 +35,7 @@
 | **os / pathlib** | ファイル・環境変数 | 全般 |
 | **json** | JSONL入出力 | `src/llm/queue.py`, Web API |
 | — | — | — |
-| **numpy** | PCM16→float32 変換など | `src/transcription.py`, VADフォールバック |
+| **numpy** | PCM16→float32 変換など | `src/asr/dual_engine.py`, VADフォールバック |
 
 ---
 
