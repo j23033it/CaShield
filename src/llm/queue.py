@@ -16,22 +16,42 @@ from .windowing import build_window  # parse_line/Turn は未使用のためイ�
 
 @dataclass
 class Job:
+    """LLM要約ワーカーに投入される単位仕事。
+
+    - date: 対象ログ日付（YYYY-MM-DD）
+    - lines: ログ全行
+    - ng_index: NGトリガとなった行のインデックス
+    - ng_word: トリガ語
+    - out_dir: 出力ディレクトリ（logs/summaries）
+    - severity: 既定深刻度（keywords.txt による上書きを想定）
+    """
     date: str
-    lines: List[str]   # ログ全行
-    ng_index: int      # 基点インデックス
+    lines: List[str]
+    ng_index: int
     ng_word: str
-    out_dir: Path      # 保存先: logs/summaries
-    severity: int = 3  # 既定深刻度（keywords.txt による上書きを想定）
+    out_dir: Path
+    severity: int = 3
+
+
+@dataclass
+class WindowConfig:
+    """要約用の窓取り設定（コード内設定）。.env は使用しない。"""
+    min_sec: int = 12
+    max_sec: int = 30
+    max_tokens: int = 512
 
 
 class LLMJobRunner:
-    def __init__(self, out_root: Path, cfg: LLMConfig):
+    """LLM要約ジョブの実行と結果保存を担当するクラス。"""
+
+    def __init__(self, out_root: Path, cfg: LLMConfig, win: WindowConfig | None = None):
         self.q: asyncio.Queue[Job] = asyncio.Queue()
         self.out_root = out_root
         self.summarizer = GeminiSummarizer(cfg)
+        self.win = win or WindowConfig()
 
     async def put(self, job: Job) -> None:
-        """処理キューに投入（観測用ログを出力）"""
+        """処理キューに投入（観測用ログを出力）。"""
         await self.q.put(job)
         print(
             f"[LLM][queue] date={job.date} idx={job.ng_index} "
@@ -40,7 +60,7 @@ class LLMJobRunner:
         )
 
     async def worker(self) -> None:
-        """ジョブを取り出して逐次処理"""
+        """ジョブを取り出して逐次処理。"""
         while True:
             job = await self.q.get()
             try:
@@ -55,21 +75,17 @@ class LLMJobRunner:
                 self.q.task_done()
 
     async def _process(self, job: Job) -> None:
-        """1ジョブ分の要約実行と保存"""
+        """1ジョブ分の要約実行と保存。"""
         job.out_dir.mkdir(parents=True, exist_ok=True)
 
-        # 窓取りパラメータ（環境変数で上書き可）
-        min_sec = int(_env("CASHIELD_MIN_SEC", "12"))
-        max_sec = int(_env("CASHIELD_MAX_SEC", "30"))
-        max_tokens = int(_env("CASHIELD_MAX_TOKENS", "512"))
-
+        # 窓取り（コード内設定）
         snip = build_window(
             lines=job.lines,
             ng_index=job.ng_index,
             ng_word=job.ng_word,
-            min_sec=min_sec,
-            max_sec=max_sec,
-            max_tokens=max_tokens,
+            min_sec=self.win.min_sec,
+            max_sec=self.win.max_sec,
+            max_tokens=self.win.max_tokens,
         )
 
         # LLM 入力（ターンを素直に JSON へ）
@@ -101,7 +117,7 @@ class LLMJobRunner:
             "severity": int(job.severity) if job.severity else 3,
             "action": res.action,
             "meta": {
-                "model": self.summarizer.model,  # 修正: summarizerインスタンスから直接モデル名を取得
+                "model": self.summarizer.model,
                 "created_at": now,
                 "line_range": [snip.lo_index, snip.hi_index],
                 "line_indices": line_idx,
@@ -111,7 +127,7 @@ class LLMJobRunner:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     def _write_error(self, job: Job, exc: Exception) -> None:
-        """失敗時に per-job と per-day の両方にスタックトレースを残す"""
+        """失敗時に per-job と per-day の両方にスタックトレースを残す。"""
         # per-job
         err_dir = job.out_dir / "errors"
         err_dir.mkdir(parents=True, exist_ok=True)
@@ -126,8 +142,3 @@ class LLMJobRunner:
             ef.write(f"[{ts}] idx={job.ng_index}\n")
             ef.write("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)))
             ef.write("\n")
-
-
-def _env(k: str, default: str) -> str:
-    import os
-    return os.environ.get(k, default)
