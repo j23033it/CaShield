@@ -1,7 +1,9 @@
 # scripts/purge_raw_logs.py
 """
 要約に採用されなかった原文行を TTL 経過後に削除するユーティリティ。
-- 既定 TTL: 環境変数 CASHIELD_RAW_TTL_HOURS (default: 24)
+
+- 設定はコード内（Config）で集中管理（.env/環境変数は使用しない）
+- 既定 TTL: 24 時間（`Config.TTL_HOURS`）
 - バックアップ: logs/backup/<date>.txt.bak を必ず作成
 - ドライラン: --dry-run で結果だけ表示
 - 対象: --date YYYY-MM-DD を指定（未指定時は全ファイルを走査）
@@ -9,7 +11,6 @@
 from __future__ import annotations
 import argparse
 import json
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Set
@@ -19,8 +20,10 @@ LOG_DIR = ROOT / "logs"
 SUM_DIR = LOG_DIR / "summaries"
 BACKUP_DIR = LOG_DIR / "backup"
 
-def _env(k: str, default: str) -> str:
-    return os.environ.get(k, default)
+
+class Config:
+    """コード内設定オブジェクト（.envは使用しない）。"""
+    TTL_HOURS: int = 24
 
 def _list_dates() -> List[str]:
     return sorted([p.stem for p in LOG_DIR.glob("*.txt")])
@@ -83,7 +86,7 @@ def purge_date(date: str, ttl_hours: int, dry_run: bool = False) -> None:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", help="YYYY-MM-DD（未指定で全日）")
-    ap.add_argument("--ttl-hours", type=int, default=int(_env("CASHIELD_RAW_TTL_HOURS", "24")))
+    ap.add_argument("--ttl-hours", type=int, default=Config.TTL_HOURS)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
