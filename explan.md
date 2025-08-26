@@ -43,12 +43,17 @@ README.md, TECHNOLOGIES.md, explan.md, requirements.txt
   - `kws/`
     - `simple.py`: 認識テキストをひらがな化し、`keywords.txt` の各語と部分一致で照合。
     - `keywords.py`: `keywords.txt` を解析し、キーワード一覧と深刻度マップを返す。
+  - `llm/`
+    - `client_gemini.py`: Gemini クライアント。`GeminiSummarizer` と `LLMConfig` を提供し、コード内設定（APIキー・モデル名・温度・最大トークン・リトライ）で構成。要約のJSONスキーマを定義し、severity は任意（保存時は keywords の既定値を採用）。
+    - `windowing.py`: LLMに渡す会話窓の構築。`Turn`/`Snippet` モデル、`parse_line()`、`build_window()`（min_sec / max_sec / max_tokens を満たすように前後を拡張し anchor_time を算出）。
+    - `queue.py`: LLM要約ジョブ実行。`Job` と `WindowConfig`、`LLMJobRunner` を提供。窓取り→Gemini要約→`logs/summaries/<date>.jsonl` への1行JSON追記、エラーは `*.errors.log` に記録。
   - `config/`
     - `filter.py`: 既知ハルシネーション（定型文）の除外設定と判定関数
   - `vad/`
     - `webrtc.py`: WebRTC VAD を使った発話区間抽出器。前後パディングや短ポーズ連結を実装。
   - ルート直下
     - `action_manager.py`: 検出時の警告音再生・ログを非ブロッキングに実行。
+    - `models.py`: データモデル定義。`AudioData`（録音データとメタ）/ `TranscriptionResult`（ASR結果・スコア・メタ）/ `AppConfig`（アプリ設定の簡易表現）。
 
 - `scripts/`
   - `rt_stream.py`: ランタイム構成（`sd_input`→`webrtc VAD`→`ASR`→`KWS`→アクション）。
