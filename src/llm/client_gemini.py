@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -14,16 +13,22 @@ from google.genai import types
 
 @dataclass
 class LLMConfig:
-    """補助的な設定（トークン数やリトライ）を管理します"""
-    max_output_tokens: int = int(os.environ.get("CASHIELD_LLM_MAX_OUTPUT", "1024"))
-    max_retries: int = int(os.environ.get("CASHIELD_LLM_RETRIES", "5"))
-    base_backoff_s: float = float(os.environ.get("CASHIELD_LLM_BACKOFF_BASE", "1.0"))
-    backoff_jitter_s: float = float(os.environ.get("CASHIELD_LLM_BACKOFF_JITTER", "0.2"))
+    """LLM通信の補助設定（トークン数やリトライ）をコード内で集中管理するクラス。
+
+    - .env や環境変数は使わず、以下の既定値を直接編集して運用してください。
+    """
+
+    max_output_tokens: int = 1024
+    max_retries: int = 5
+    base_backoff_s: float = 1.0
+    backoff_jitter_s: float = 0.2
 
 
 class GeminiSummarizer:
-    """
-    Google AI (Gemini) で要約を取得する薄いラッパ。
+    """Google AI (Gemini) で要約を取得する薄いラッパ。
+
+    - APIキー・モデル名・温度は本クラス内のコードで管理します。
+    - 出力JSONは schema に従いますが、severity は省略可能です（保存時は外部の既定値で補完）。
     """
 
     def __init__(self, cfg: Optional[LLMConfig] = None) -> None:
@@ -31,7 +36,7 @@ class GeminiSummarizer:
         # ▼▼▼ APIキーとモデル設定をここに直接記述してください ▼▼▼
         # =================================================================
         self.api_key: str = "AIzaSyCHNEkRoY0t_mI-hbgD7vD-C0wIDBTLspU"
-        self.model: str = "gemini-2.5-flash-lite"  
+        self.model: str = "gemini-2.5-flash-lite"
         self.temperature: float = 0.1
         # =================================================================
         # ▲▲▲ 設定はここまで ▲▲▲
@@ -43,7 +48,7 @@ class GeminiSummarizer:
         self.cfg = cfg or LLMConfig()
         self.client = genai.Client(api_key=self.api_key)
 
-        # 返却 JSON のスキーマ
+        # 返却 JSON のスキーマ（severity は任意項目）
         self._schema = types.Schema(
             type=types.Type.OBJECT,
             properties={
@@ -61,12 +66,9 @@ class GeminiSummarizer:
                     ),
                 ),
                 "summary": types.Schema(type=types.Type.STRING),
-                # severity は保存時に keywords.txt の既定値を使うため、
-                # スキーマには残すが必須にはしない
-                "severity": types.Schema(type=types.Type.INTEGER),
+                "severity": types.Schema(type=types.Type.INTEGER),  # 任意
                 "action": types.Schema(type=types.Type.STRING),
             },
-            # severity は必須から外す（LLMプロンプトでも要求しない）
             required=["ng_word", "turns", "summary", "action"],
         )
 
@@ -78,13 +80,13 @@ class GeminiSummarizer:
         )
 
     def _build_prompt(self, payload: Dict[str, Any]) -> str:
+        """入力ペイロードから日本語プロンプトを構築する補助関数"""
         ng = payload.get("ng_word", "")
         turns = payload.get("turns", [])
         lines: List[str] = []
         lines.append("あなたはカスタマーハラスメント対策の監視AIです。")
         lines.append("与えられた数発話（日本語）のやり取りを読み、次をJSONで出力してください。")
         lines.append("1) ng_word（検知トリガ） 2) turns（そのままエコー）")
-        # severity は keywords.txt の既定値を使用するため、LLMには要求しない
         lines.append("3) summary（簡潔な要約） 4) action（店員への推奨対応）")
         lines.append("出力は日本語。誇張せず、事実ベースで。")
         lines.append(f"\n[トリガ語候補] {ng}\n")
@@ -96,11 +98,14 @@ class GeminiSummarizer:
         return "\n".join(lines)
 
     async def summarize(self, payload: Dict[str, Any]) -> "_ResultAdapter":
-        prompt = self._build_prompt(payload)
+        """Gemini へ要約を要求し、JSONをパースして結果アダプタを返す。
 
+        - LLM の出力に `severity` が無い場合でも KeyError にしない。
+        - 必須キー（ng_word/turns/summary/action）のみ軽く検証。
+        """
         content = types.Content(
             role="user",
-            parts=[types.Part.from_text(text=prompt)],
+            parts=[types.Part.from_text(text=self._build_prompt(payload))],
         )
 
         attempt = 0
@@ -108,7 +113,7 @@ class GeminiSummarizer:
             try:
                 resp = await asyncio.to_thread(
                     self.client.models.generate_content,
-                    model=self.model,  # ハードコードされたモデル名を使用
+                    model=self.model,
                     contents=[content],
                     config=self._gen_config,
                 )
@@ -124,14 +129,21 @@ class GeminiSummarizer:
                     raise RuntimeError("No text in Gemini response.")
 
                 data = json.loads(text)
-                _ = data["ng_word"], data["turns"], data["summary"], data["severity"], data["action"]
+                # 必須キーの存在を軽くチェック（severity は任意）
+                for k in ("ng_word", "turns", "summary", "action"):
+                    if k not in data:
+                        raise KeyError(f"missing required key: {k}")
+                # severity が無ければ補完（後段では job.severity を優先利用）
+                if "severity" not in data:
+                    data["severity"] = 3
+
                 return _ResultAdapter(data)
 
             except Exception as e:
                 attempt += 1
                 if attempt > self.cfg.max_retries:
                     raise RuntimeError(f"Gemini summarization failed: {e}") from e
-                
+
                 sleep_s = self.cfg.base_backoff_s * (2 ** (attempt - 1))
                 sleep_s += random.uniform(-self.cfg.backoff_jitter_s, self.cfg.backoff_jitter_s)
                 if sleep_s < 0.1:
