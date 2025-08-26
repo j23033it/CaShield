@@ -9,28 +9,27 @@ src/
   audio/sd_input.py      # 低レイテンシ音声入力（sounddevice）
   asr/dual_engine.py     # faster-whisper 二段ラッパ（FAST/FINAL）
   kws/fuzzy.py           # かな正規化 + rapidfuzz の KWS
+  kws/keywords.py        # keywords.txt の読み込みと深刻度マップ
   vad/webrtc.py          # WebRTC VAD による発話区間抽出
   action_manager.py      # 警告音・ログ処理（非ブロッキング）
-  audio_capture.py       # PyAudioの簡易キャプチャ（従来互換）
-  config.py              # 旧設定（一般項目）
   config/asr.py          # ASR 設定（コード内に集約: FAST/FINAL, VAD など）
-  models.py              # データモデル（AudioData/TranscriptionResult）
-  status_manager.py      # ステータス管理（スレッドセーフ）
-  transcriber.py         # 単発音声の簡易トランスクライブAPI
-  transcription.py       # TranscriptionEngine（faster-whisper 本体）
+  config/filter.py       # ハルシネーション除外設定
+  llm/client_gemini.py   # Gemini クライアント（コード内設定）
+  llm/windowing.py       # LLM要約用の窓取りロジック
+  llm/queue.py           # LLM要約ジョブ実行/保存
 scripts/
   rt_stream.py           # リアルタイム監視のエントリ（VAD→ASR→KWS→アクション）
   create_alert_sound.py  # 簡易な警告音ファイル生成スクリプト
   llm_worker.py          # ログ監視とLLM要約ワーカ
+  purge_raw_logs.py      # TTL経過の原文行を要約採用分のみ残す
 webapp/
   app.py                 # Flask Webサーバ
   templates/             # HTMLテンプレート
-  static/                # CSS, JSファイル
+  static/                # 画像・音声ファイル
 assets/alert.wav         # 警告音のデフォルトファイル
-config/keywords.txt      # NGワード一覧（1行1語）
-logs/                    # 検出ログの出力（必要に応じて）
-main.py                  # シンプル実行のエントリポイント
-README.md, TECHNOLOGIES.md, requirements.txt
+config/keywords.txt      # NGワード一覧（レベル行形式/1行1語）
+logs/                    # 検出ログの出力
+README.md, TECHNOLOGIES.md, explan.md, requirements.txt
 ```
 
 ## ディレクトリの役割
@@ -40,7 +39,7 @@ README.md, TECHNOLOGIES.md, requirements.txt
   - `audio/`
     - `sd_input.py`: sounddevice の `RawInputStream` による低レイテンシ入力。リングバッファで 20–30 ms 単位のチャンク化。
   - `asr/`
-    - `engine.py`: `faster-whisper` を使った軽量ラッパ。PCM16バイト列を float32 に変換して `model.transcribe()` を実行。
+    - `dual_engine.py`: `faster-whisper` を使った二段ラッパ（FAST→FINAL）。PCM16→float32 変換、非同期FINAL実行。
   - `kws/`
     - `simple.py`: 認識テキストをひらがな化し、`keywords.txt` の各語と部分一致で照合。
     - `keywords.py`: `keywords.txt` を解析し、キーワード一覧と深刻度マップを返す。
@@ -50,12 +49,6 @@ README.md, TECHNOLOGIES.md, requirements.txt
     - `webrtc.py`: WebRTC VAD を使った発話区間抽出器。前後パディングや短ポーズ連結を実装。
   - ルート直下
     - `action_manager.py`: 検出時の警告音再生・ログを非ブロッキングに実行。
-    - `audio_capture.py`: PyAudio による簡易録音（互換・学習用）。
-    - `config.py`: モデル名・デバイス・量子化などの基本設定。
-    - `models.py`: 音声データと結果のデータクラス定義。
-    - `status_manager.py`: スレッドセーフな状態管理。
-    - `transcriber.py`: ファイル/バイト列入力の簡易文字起こしヘルパ。
-    - `transcription.py`: `TranscriptionEngine`（モデルのロードと推論）。
 
 - `scripts/`
   - `rt_stream.py`: ランタイム構成（`sd_input`→`webrtc VAD`→`ASR`→`KWS`→アクション）。
@@ -88,7 +81,7 @@ README.md, TECHNOLOGIES.md, requirements.txt
    - WebRTC VAD（aggressiveness 0–3）またはフォールバックで発話区間を抽出  
    - 前後パディング（prev_ms / post_ms）、短ポーズ連結、最長長さ制限
 
-3. **ASR**（`src/asr/dual_engine.py` / `src/transcription.py`）  
+3. **ASR**（`src/asr/dual_engine.py`）  
    - `faster-whisper`（CTranslate2）で日→日（`language="ja"`）認識  
    - 二段構成：FAST=`small(int8, beam=2)` / FINAL=`large-v3(int8, beam=5)`（コードで固定）
 
@@ -102,8 +95,8 @@ README.md, TECHNOLOGIES.md, requirements.txt
    - FAST/FINAL の双方で、`src/config/filter.py` 定義の禁止フレーズはスキップ
 
 6. **LLM要約**（`scripts/llm_worker.py` + `src/llm/*`）  
-   - 原文ログを監視し、NG行を基点に**窓取り**（min_sec≥12 / max_sec≤30 / tokens≤1024）  
-   - **構造化JSON**を生成：`{ ng_word, turns[], summary, severity(1–5), action }`（severity は keywords.txt の既定値を採用）
+   - 原文ログを監視し、NG行を基点に**窓取り**（min_sec≥12 / max_sec≤30 / tokens≤512）  
+   - **構造化JSON**を生成：`{ ng_word, turns[], summary, severity(1–3), action }`（severity は keywords.txt の既定値を採用）
    - `logs/summaries/<date>.jsonl` に**1 NG 事象＝1行**で追記  
    - 失敗は `logs/summaries/<date>.errors.log` と `logs/summaries/errors/*.log` に保存
 
@@ -111,7 +104,7 @@ README.md, TECHNOLOGIES.md, requirements.txt
    - `/` … 日付一覧  
    - `/logs/<date>` … 原文表示（初回ロードで全件表示し、SSE `/stream/<date>` で追記。追記時に通知音）  
    - `/api/logs/<date>` … 原文のJSON配列  
-   - （要約ビューは今後 `/summaries/<date>` でのカード表示に対応予定の設計）
+   - `/summaries/<date>` … 要約カード表示（深刻度は 1〜3 で表示）
 
 ---
 
@@ -143,17 +136,16 @@ README.md, TECHNOLOGIES.md, requirements.txt
   - 使用技術の一覧と使用箇所。
 - `requirements.txt`
   - 依存ライブラリ。
-- `setup_and_test.py`
-  - 初期セットアップ/動作確認用（任意）。
+  
 
 ## 実行の最短手順（再掲）
 
 ```bash
 source venv/bin/activate
-# シンプル実行
-python main.py
 # リアルタイム監視（推奨）
-python scripts/rt_stream.py
+python -m scripts.rt_stream
+# LLM要約ワーカー（別ターミナル）
+python -m scripts.llm_worker
 ```
 
 
