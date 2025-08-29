@@ -5,9 +5,11 @@ scripts/rt_stream.py
 
 - 設定はコード内オブジェクトで集中管理（.envは使用しない）
 - 入力デバイス指定もコード内定数で管理（環境変数依存を廃止）
+- Raspberry Pi のヘッドレス運用を想定し、SIGHUP を無視して HDMI 抜去等で強制終了しないようにする。
 """
 
 import re
+import signal
 import time
 from concurrent.futures import Future
 from datetime import datetime
@@ -92,6 +94,14 @@ def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
 def main() -> None:
+    # ヘッドレス運用時の安全策: 端末切断などで送られる SIGHUP を無視
+    try:
+        if hasattr(signal, "SIGHUP"):
+            signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    except Exception:
+        # 非POSIX等では無視
+        pass
+
     # Code-based configuration (no .env/YAML for ASR)
     sample_rate = ASRConfig.SAMPLE_RATE
     block_ms = ASRConfig.BLOCK_MS
