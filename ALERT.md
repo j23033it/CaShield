@@ -237,3 +237,15 @@ with out_path.open("a", encoding="utf-8") as f:
 - 追加依存は極力不要に設計しています（Windows + `.wav` 推奨）。
 - 将来の拡張に備え、ログ/要約のI/Oは1ファイル1日・JSONL（要約）を採用しています。
 
+---
+
+## 7) Raspberry Pi ヘッドレス運用（HDMI 抜去時の強制終了対策）
+
+- 症状: Raspberry Pi を HDMI 接続状態で起動し、後から HDMI を抜くとセッション切断に起因する `SIGHUP` が飛び、プロセスが終了してしまうことがある。
+- 対策: 本プロジェクトでは以下のエントリースクリプトで `SIGHUP` を `SIG_IGN` に設定し、ヘッドレスでも終了しないようにしています。
+  - `scripts/rt_stream.py` → `main()` の冒頭
+  - `scripts/llm_worker.py` → `amain()` の冒頭
+  - `webapp/app.py` → `if __name__ == "__main__":` ブロック内
+- 追加の運用上の推奨:
+  - `tmux`/`screen` 上で実行しておく（端末切断の影響を遮断）
+  - `systemd` 化して常駐・自動再起動・ログ集約を有効化
