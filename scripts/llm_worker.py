@@ -75,7 +75,8 @@ async def watch_today(stop: asyncio.Event) -> None:
             for idx in ng_idxs:
                 _, _, txt = parse_line(lines[idx])
                 ng_word = next((k for k in keywords if k in txt), "NG")
-                sev = severity_map.get(ng_word, 3)
+                # 2段階制に合わせ、未定義は既定で 2 とみなす
+                sev = severity_map.get(ng_word, 2)
                 await runner.put(Job(date=date, lines=lines, ng_index=idx, ng_word=ng_word, out_dir=out_root, severity=sev))
 
             seen_count = len(lines)
