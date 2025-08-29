@@ -17,6 +17,7 @@ import datetime
 import time
 import json
 import re
+import signal
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, abort, Response, stream_with_context, redirect, url_for
 
@@ -243,4 +244,10 @@ def stream_logs(date):
     return Response(stream_with_context(generate()), mimetype='text/event-stream', headers={"Cache-Control": "no-cache"})
 
 if __name__ == "__main__":
+    # ヘッドレス運用時の安全策: 端末切断などで送られる SIGHUP を無視
+    try:
+        if hasattr(signal, "SIGHUP"):
+            signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    except Exception:
+        pass
     app.run(host="0.0.0.0", port=5000, debug=False)
