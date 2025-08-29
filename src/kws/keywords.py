@@ -7,18 +7,19 @@ keywords.txt の柔軟なパーサを提供し、
 を取得する。
 
 サポートするフォーマット:
-1) レベル行形式（推奨）
+1) レベル行形式（推奨・複数行対応）
    例:
      level1=[ ]
-     level2=[黙れ,いい加減にしろ]
-     level3=[殺す,死ね]
-   → "level<数値>" を深刻度として解釈（int）。
+     level2=[黙れ, いい加減にしろ,
+             地獄に落ちろ]
+     level3=[殺す, 死ね]
+   → "level<数値>" を深刻度として解釈（int）。[] 内は改行・末尾カンマ可。
 
 2) 1行1語形式（後方互換）
    例:
      土下座
      無能
-   → デフォルト深刻度=3 を付与。
+   → デフォルト深刻度=2 を付与（2段階制に合わせる）。
 
 備考:
 - 空白・全角カンマ・混在スペースにある程度対応。
@@ -37,32 +38,43 @@ def load_keywords_with_severity(path: Path) -> Tuple[List[str], Dict[str, int]]:
 
     - keywords: KWS 用キーワード（重複排除・順序維持）
     - severity_map: キーワード→深刻度（int）
+
+    仕様:
+    - levelN=[...] は複数行に渡っても良い（']' までを1ブロックとして取り込む）
+    - ブロック内は半角/全角カンマで分割、空要素はスキップ
+    - レベル記法が1つも無い場合は 1行1語形式として扱い、深刻度=2 を付与
     """
     if not path.exists():
         defaults = ["土下座", "無能", "死ね"]
-        return defaults, {w: 3 for w in defaults}
+        # 2段階制の既定に合わせ、既定深刻度は 2
+        return defaults, {w: 2 for w in defaults}
 
     text = path.read_text(encoding="utf-8")
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    # 余分な空白除去はレベル検出時に行うため、生テキストで走査
 
-    # パターン1: levelN=[w1,w2,...]
-    level_pat = re.compile(r"^level\s*(\d+)\s*=\s*\[(.*)\]$", re.IGNORECASE)
+    # --- パターン1: levelN=[ ... ] ブロックを複数行対応で抽出 ---
+    level_head = re.compile(r"level\s*(\d+)\s*=\s*\[", re.IGNORECASE)
+    i = 0
+    n = len(text)
     any_level = False
     keywords: List[str] = []
     sev_map: Dict[str, int] = {}
 
-    for ln in lines:
-        m = level_pat.match(ln)
+    while i < n:
+        m = level_head.search(text, i)
         if not m:
-            continue
+            break
         any_level = True
         sev = int(m.group(1))
-        # 中身をカンマ分割（全角カンマも考慮）
-        body = m.group(2).strip()
-        # 空の場合
-        if not body:
-            continue
-        # カンマ区切りで分割 → 余分な空白・ブラケットを削除
+        # 開始ブラケットの直後から対応する ']' までを探す（ネスト想定なし）
+        j = m.end()
+        end = text.find(']', j)
+        if end == -1:
+            # 閉じブラケットが無い → 異常行。以降を諦める
+            break
+        body = text[j:end]
+        # ブロック内の改行や余分な空白を許容
+        # カンマ（全角/半角）で分割し、空を除外
         for raw in re.split(r"[,、]", body):
             w = raw.strip().strip("[]")
             if not w:
@@ -70,15 +82,16 @@ def load_keywords_with_severity(path: Path) -> Tuple[List[str], Dict[str, int]]:
             if w not in sev_map:
                 keywords.append(w)
             sev_map[w] = sev
+        i = end + 1
 
     if any_level:
         return keywords, sev_map
 
-    # パターン2: 1行1語（デフォルト深刻度=3）
+    # --- パターン2: 1行1語（デフォルト深刻度=2）---
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     for ln in lines:
         w = ln
         if w not in sev_map:
             keywords.append(w)
-        sev_map[w] = 3
+        sev_map[w] = 2
     return keywords, sev_map
-
