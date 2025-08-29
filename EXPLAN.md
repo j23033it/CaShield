@@ -113,14 +113,7 @@ README.md, TECHNOLOGIES.md, explan.md, requirements.txt
 
 ---
 
-## 運用（Raspberry Pi ヘッドレス / HDMI 抜去対策）
-
-- 背景: HDMI を抜去すると、セッション切断由来の `SIGHUP` がプロセスへ送られ終了することがある。
-- 実装: エントリースクリプトで `SIGHUP` を無視。
-  - `scripts/rt_stream.py` → `main()` で `signal.SIGHUP` を `SIG_IGN`
-  - `scripts/llm_worker.py` → `amain()` で同様
-  - `webapp/app.py` → `__main__` で同様
-- 推奨: `tmux`/`screen` での起動、もしくは `systemd` で常駐化。
+---
 
 ## ログ・ファイル形式
 

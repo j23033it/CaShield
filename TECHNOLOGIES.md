@@ -75,11 +75,6 @@
 - **APIキーはコード内設定**で管理（`.env` は使用しません）。`src/llm/client_gemini.py` の `self.api_key` を設定してください。  
 - 長期運用は **systemd**（Raspberry Pi）で `rt_stream` / `app.py` / `llm_worker` をそれぞれ常駐化
 
-### Raspberry Pi ヘッドレス運用（HDMI 抜去対策）
-
-- 端末切断・HDMI抜去に伴う `SIGHUP` によりプロセスが終了しないよう、各エントリースクリプトで `SIGHUP` を `SIG_IGN` に設定しています。
-- 追加で `tmux`/`screen` の利用や `systemd` サービス化を推奨します。
-
 ---
 
 ## コード内設定
