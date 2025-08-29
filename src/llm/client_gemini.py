@@ -135,7 +135,7 @@ class GeminiSummarizer:
                         raise KeyError(f"missing required key: {k}")
                 # severity が無ければ補完（後段では job.severity を優先利用）
                 if "severity" not in data:
-                    data["severity"] = 3
+                    data["severity"] = 2
 
                 return _ResultAdapter(data)
 
@@ -160,12 +160,13 @@ class _ResultAdapter:
             _TurnAdapter(t.get("role"), t.get("text"), t.get("time")) for t in data.get("turns", [])
         ]
         self.summary: str = data.get("summary", "")
-        sev = data.get("severity", 3)
+        sev = data.get("severity", 2)
         try:
             sev = int(sev)
         except Exception:
-            sev = 3
-        self.severity: int = min(5, max(1, sev))
+            sev = 2
+        # 2段階制に合わせて 1..2 の範囲にクリップ
+        self.severity: int = min(2, max(1, sev))
         self.action: str = data.get("action", "")
 
 
