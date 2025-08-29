@@ -53,7 +53,7 @@
 
 - **音声**：16kHz / mono / PCM16（bytes）  
 - **原文ログ**：LF区切りのプレーンテキスト（1行1発話）。`[NG: …]` マークを基点に LLM が窓取り  
-- **要約**：JSONL（1 NG 事象 ≒ 1 行）。`{ ng_word, turns[], summary, severity(1–5), action, meta }`（severity は keywords.txt の既定値を採用）  
+- **要約**：JSONL（1 NG 事象 ≒ 1 行）。`{ ng_word, turns[], summary, severity(1–2), action, meta }`（severity は keywords.txt の既定値を採用）  
 - **Web**：Flask（HTMLテンプレート）＋ SSE `/stream/<date>` によるログ追記配信  
   - 初回ロードで過去ログを全件表示し、以降の追加行をSSEでリアルタイムに追記（追記時に通知音）
 
