@@ -30,7 +30,8 @@ class Job:
     ng_index: int
     ng_word: str
     out_dir: Path
-    severity: int = 3
+    # 2段階制（1..2）に合わせた既定深刻度
+    severity: int = 2
 
 
 @dataclass
@@ -114,7 +115,8 @@ class LLMJobRunner:
             "ng_word": job.ng_word or res.ng_word,
             "turns": [t.model_dump() for t in res.turns],
             "summary": res.summary,
-            "severity": int(job.severity) if job.severity else 3,
+            # 未設定時も 2 を既定として保存
+            "severity": int(job.severity) if job.severity else 2,
             "action": res.action,
             "meta": {
                 "model": self.summarizer.model,
