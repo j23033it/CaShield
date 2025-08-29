@@ -98,6 +98,8 @@ async def amain() -> None:
     try:
         if hasattr(signal, "SIGHUP"):
             signal.signal(signal.SIGHUP, signal.SIG_IGN)
+        if hasattr(signal, "SIGPIPE"):
+            signal.signal(signal.SIGPIPE, signal.SIG_IGN)
     except Exception:
         pass
     stop = asyncio.Event()
