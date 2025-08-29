@@ -145,6 +145,8 @@ python -m webapp.app
   - `scripts/rt_stream.py` … `main()` 冒頭で `signal.signal(signal.SIGHUP, signal.SIG_IGN)`
   - `scripts/llm_worker.py` … `amain()` 冒頭で同様
   - `webapp/app.py` … `__main__` ブロックで同様
+- 追加の耐障害化: `scripts/rt_stream.py` のメインループは、音声入出力/ASR/VAD 由来の実行時例外を握り、
+  入力ストリームを自動再初期化して処理を継続します（短時間のリトライを含む）。
 - 併用推奨:
   - `tmux`/`screen` 上で各プロセスを起動（端末切断の影響を受けない）
   - `systemd` 常駐化（自動起動・自動再起動・ログ集約）
