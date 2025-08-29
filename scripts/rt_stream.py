@@ -3,9 +3,9 @@ scripts/rt_stream.py
 
 リアルタイム監視（VAD → ASR(FAST/FINAL) → KWS → ログ追記 → 警告音）。
 
-- 設定はコード内オブジェクトで集中管理（.envは使用しない）
-- 入力デバイス指定もコード内定数で管理（環境変数依存を廃止）
-- Raspberry Pi のヘッドレス運用を想定し、SIGHUP を無視して HDMI 抜去等で強制終了しないようにする。
+- 設定はコード内の設定オブジェクトで集中管理（.envは使用しない）
+- 入力デバイスは名称部分一致にも対応し、USB/HDMIキャプチャの抜き差し（ホットプラグ）でも
+  自動復帰できるよう、生存監視と自動再起動を実装。
 """
 
 import re
@@ -27,9 +27,20 @@ from src.config.filter import is_banned, BANNED_HALLUCINATIONS
 
 LOG_DIR = Path("logs")
 
-# --- コード内設定: 入力デバイス ---
-# None の場合はデフォルトデバイスを使用。ID(int) または名称(str) も指定可能。
-INPUT_DEVICE: Optional[int | str] = None
+# --- コード内設定オブジェクト（集中管理） ---
+class RTStreamConfig:
+    """リアルタイム音声監視の設定
+
+    - INPUT_DEVICE: None / 入力デバイス index / 名称の部分一致文字列（例: "USB", "HDMI"）
+    - HOTPLUG_LIVENESS_TIMEOUT_S: コールバック無応答と見なす秒数（超過で再起動）
+    - RESTART_BACKOFF_S: 再起動リトライの待機秒数
+    - FALLBACK_TO_DEFAULT: 明示デバイスで開始失敗時にデフォルトへフォールバック
+    """
+
+    INPUT_DEVICE: Optional[int | str] = None
+    HOTPLUG_LIVENESS_TIMEOUT_S: float = 2.0
+    RESTART_BACKOFF_S: float = 1.0
+    FALLBACK_TO_DEFAULT: bool = True
 
 # ▼▼▼ 幻覚（ハルシネーション）定型文のフィルタ（集中管理: src/config/filter.py） ▼▼▼
 
@@ -136,23 +147,28 @@ def main() -> None:
     print("Ctrl+C to stop\n")
 
     # 入力デバイスはコード内設定を使用
-    # 入力ストリームの安全な開始/再起動関数
+    # 入力ストリームの安全な開始/再起動関数（ホットプラグ耐性あり）
     def _ensure_input_started():
         try:
             sd_in.stop()
         except Exception:
             pass
         try:
-            sd_in.start(device=INPUT_DEVICE)
+            sd_in.start(device=RTStreamConfig.INPUT_DEVICE)
         except Exception as e:
-            print(f"[audio] start failed: {e}. retry in 1s")
-            time.sleep(1.0)
+            print(f"[audio] start failed: {e}. retry in {RTStreamConfig.RESTART_BACKOFF_S}s")
+            time.sleep(RTStreamConfig.RESTART_BACKOFF_S)
             try:
-                sd_in.start(device=INPUT_DEVICE)
+                sd_in.start(device=RTStreamConfig.INPUT_DEVICE)
             except Exception as e2:
-                print(f"[audio] retry failed: {e2}. using default device after 2s")
-                time.sleep(2.0)
-                sd_in.start(device=None)
+                if RTStreamConfig.FALLBACK_TO_DEFAULT:
+                    print(
+                        f"[audio] retry failed: {e2}. using default device after {RTStreamConfig.RESTART_BACKOFF_S*2}s"
+                    )
+                    time.sleep(RTStreamConfig.RESTART_BACKOFF_S * 2)
+                    sd_in.start(device=None)
+                else:
+                    raise
 
     _ensure_input_started()
 
@@ -161,6 +177,17 @@ def main() -> None:
             try:
                 # 60ms 毎に取り出し
                 time.sleep(0.06)
+
+                # ホットプラグ検知: 一定時間コールバック無し/非アクティブなら再起動
+                if (not sd_in.is_active()) or (
+                    sd_in.time_since_last_callback() > RTStreamConfig.HOTPLUG_LIVENESS_TIMEOUT_S
+                ):
+                    print(
+                        f"[audio] inactive or silent > {RTStreamConfig.HOTPLUG_LIVENESS_TIMEOUT_S}s. restarting...",
+                        flush=True,
+                    )
+                    _ensure_input_started()
+                    continue
                 chunk = sd_in.pop_all()
                 if not chunk:
                     continue
