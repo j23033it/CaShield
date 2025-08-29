@@ -42,7 +42,7 @@ README.md, TECHNOLOGIES.md, explan.md, requirements.txt
     - `dual_engine.py`: `faster-whisper` を使った二段ラッパ（FAST→FINAL）。PCM16→float32 変換、非同期FINAL実行。
   - `kws/`
     - `simple.py`: 認識テキストをひらがな化し、`keywords.txt` の各語と部分一致で照合。
-    - `keywords.py`: `keywords.txt` を解析し、キーワード一覧と深刻度マップを返す。
+    - `keywords.py`: `keywords.txt` を解析し、キーワード一覧と深刻度マップを返す（レベル記法は複数行対応、2段階制）。
   - `llm/`
     - `client_gemini.py`: Gemini クライアント。`GeminiSummarizer` と `LLMConfig` を提供し、コード内設定（APIキー・モデル名・温度・最大トークン・リトライ）で構成。要約のJSONスキーマを定義し、severity は任意（保存時は keywords の既定値を採用）。
     - `windowing.py`: LLMに渡す会話窓の構築。`Turn`/`Snippet` モデル、`parse_line()`、`build_window()`（min_sec / max_sec / max_tokens を満たすように前後を拡張し anchor_time を算出）。
@@ -101,7 +101,7 @@ README.md, TECHNOLOGIES.md, explan.md, requirements.txt
 
 6. **LLM要約**（`scripts/llm_worker.py` + `src/llm/*`）  
    - 原文ログを監視し、NG行を基点に**窓取り**（min_sec≥12 / max_sec≤30 / tokens≤512）  
-   - **構造化JSON**を生成：`{ ng_word, turns[], summary, severity(1–3), action }`（severity は keywords.txt の既定値を採用）
+   - **構造化JSON**を生成：`{ ng_word, turns[], summary, severity(1–2), action }`（severity は keywords.txt の既定値を採用）
    - `logs/summaries/<date>.jsonl` に**1 NG 事象＝1行**で追記  
    - 失敗は `logs/summaries/<date>.errors.log` と `logs/summaries/errors/*.log` に保存
 
@@ -125,7 +125,7 @@ README.md, TECHNOLOGIES.md, explan.md, requirements.txt
   "ng_word": "無能",
   "turns": [{"role":"customer","text":"…","time":"13:05:11"}, ...],
   "summary": "…",
-  "severity": 3,
+  "severity": 2,
   "action": "…",
   "meta": {"model":"gemini-1.5-flash-latest","line_range":[345,359], ...}
 }
