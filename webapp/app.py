@@ -248,6 +248,8 @@ if __name__ == "__main__":
     try:
         if hasattr(signal, "SIGHUP"):
             signal.signal(signal.SIGHUP, signal.SIG_IGN)
+        if hasattr(signal, "SIGPIPE"):
+            signal.signal(signal.SIGPIPE, signal.SIG_IGN)
     except Exception:
         pass
     app.run(host="0.0.0.0", port=5000, debug=False)
