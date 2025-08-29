@@ -21,7 +21,7 @@
         const data = await res.json();
         const items = (data.items || []).slice();
 
-        // 並び順：深刻度 desc → 時刻 asc（severity は keywords.txt により 1..3）
+        // 並び順：深刻度 desc → 時刻 asc（severity は keywords.txt により 1..2）
         items.sort((a,b) => {
             const sv = (b.severity||0) - (a.severity||0);
             if (sv !== 0) return sv;
@@ -36,7 +36,7 @@
             card.innerHTML = `
                 <div class="card p-3 h-100">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge bg-danger-subtle text-danger border border-danger">深刻度 ${(x.severity||1)}/3</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger">深刻度 ${(x.severity||1)}/2</span>
                         <span class="text-muted small">${x.anchor_time || ""}</span>
                     </div>
                     <div class="mb-2"><b>NG:</b> ${x.ng_word || ""}</div>
