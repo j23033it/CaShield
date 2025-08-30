@@ -138,6 +138,19 @@ python -m webapp.app
 > - Raspberry Piをレジ付近に常設し、`systemd` などでプログラムを自動起動させ、24時間稼働させます。
 > - 初回セットアップ時のみ、モニターとキーボードを接続して設定を行います。
 
+## Raspberry Pi ヘッドレス運用（HDMI抜去時の強制終了対策）
+
+- 背景: Raspberry Pi を HDMI 接続したまま実行し、後から HDMI ケーブルを抜くと、セッション切断に伴う `SIGHUP` がプロセスへ送られ、強制終了することがあります。
+- 対策: 本プロジェクトでは以下のエントリースクリプトで `SIGHUP` を無視する初期化を入れ、ヘッドレス運用でも終了しないようにしています。
+  - `scripts/rt_stream.py` … `main()` 冒頭で `signal.signal(signal.SIGHUP, signal.SIG_IGN)`
+  - `scripts/llm_worker.py` … `amain()` 冒頭で同様
+  - `webapp/app.py` … `__main__` ブロックで同様
+- 追加の耐障害化: `scripts/rt_stream.py` のメインループは、音声入出力/ASR/VAD 由来の実行時例外を握り、
+  入力ストリームを自動再初期化して処理を継続します（短時間のリトライを含む）。
+- 併用推奨:
+  - `tmux`/`screen` 上で各プロセスを起動（端末切断の影響を受けない）
+  - `systemd` 常駐化（自動起動・自動再起動・ログ集約）
+
 ---
 
 ## ディレクトリ構成

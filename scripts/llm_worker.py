@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from datetime import datetime
-import signal
 from pathlib import Path
 from typing import List, Dict, Tuple
 
@@ -94,14 +93,6 @@ async def watch_today(stop: asyncio.Event) -> None:
 
 
 async def amain() -> None:
-    # ヘッドレス運用時の安全策: 端末切断などで送られる SIGHUP を無視
-    try:
-        if hasattr(signal, "SIGHUP"):
-            signal.signal(signal.SIGHUP, signal.SIG_IGN)
-        if hasattr(signal, "SIGPIPE"):
-            signal.signal(signal.SIGPIPE, signal.SIG_IGN)
-    except Exception:
-        pass
     stop = asyncio.Event()
     try:
         await watch_today(stop)
