@@ -57,8 +57,9 @@ class ASRConfig:
     # --- FINAL 実行制御 ---
     # FINAL を並列実行するワーカ数（スレッドプールの最大数）
     FINAL_MAX_WORKERS = 2
-    # True にすると KWS ヒット時のみ FINAL を走らせる（遅延/負荷削減）。既定は False。
-    FINAL_ON_HIT_ONLY = False
+    # True にすると KWS ヒット時のみ FINAL を走らせる（遅延/負荷削減）。
+    # HDMI抜去以外にも、FINALモデルの常時実行がメモリ圧迫・強制終了を招く環境向けの安全策。
+    FINAL_ON_HIT_ONLY = True
 
     # --- KWS（キーワード検出） ---
     # かな正規化後の rapidfuzz.partial_ratio のしきい値（0〜100）
