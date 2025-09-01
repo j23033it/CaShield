@@ -6,4 +6,4 @@ Flask>=2.3
 google-genai>=1.0.0
 rapidfuzz>=3.0.0
 pykakasi>=2.3
-pygame>=2.5
+playsound>=1.3.0
