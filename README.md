@@ -20,7 +20,7 @@
 - **キーワード検出 (KWS)**: 認識テキストをかな正規化し、rapidfuzz の部分一致で NG ワードを検出。
   - 既知のハルシネーション（例: 「ご視聴ありがとうございました」「ありがとうございました」等）はコード内フィルタで除外。
 - **VAD (音声区間検出)**: `webrtc-vad` を使用し、無音区間をカット。
-- **警告音再生**: `assets/alert.wav` を再生（playsound ベース、非ブロッキング。設定はコード内）。
+- **警告音再生**: `assets/alert.wav` を再生（OSネイティブ: Windows=winsound, macOS=afplay, Linux=ffplay/aplay）。非ブロッキング・設定はコード内。
 - **ログ記録**: `logs/YYYY-MM-DD.txt` に原文を追記。
 - **LLMによる要約**: `Gemini` を利用して、インシデントをJSONL形式で要約。
 - **Web UI (Flask)**:

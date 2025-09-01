@@ -11,7 +11,7 @@ src/
   kws/fuzzy.py           # かな正規化 + rapidfuzz の KWS
   kws/keywords.py        # keywords.txt の読み込みと深刻度マップ
   vad/webrtc.py          # WebRTC VAD による発話区間抽出
-  action_manager.py      # 警告音・ログ処理（非ブロッキング, playsound ベース）
+  action_manager.py      # 警告音・ログ処理（非ブロッキング, OSネイティブ再生）
   config/asr.py          # ASR 設定（コード内に集約: FAST/FINAL, VAD など）
   config/filter.py       # ハルシネーション除外設定
   llm/client_gemini.py   # Gemini クライアント（コード内設定）
