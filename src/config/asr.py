@@ -64,8 +64,7 @@ class ASRConfig:
     FINAL_ON_HIT_ONLY = True
 
     # --- KWS（キーワード検出） ---
-    # かな正規化後の rapidfuzz.partial_ratio のしきい値（0〜100）
-    KWS_FUZZY_THRESHOLD = 88
+    # 類似度スコアは使用せず、かな正規化後の単純一致で検出（閾値設定は不要）
 
     # --- ASR 初期プロンプト（任意） ---
     # スタイル/固有名詞の事前ヒントなどを与えたい場合のテキストパス
