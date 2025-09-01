@@ -24,7 +24,7 @@ from src.audio.sd_input import SDInput
 from src.vad.webrtc import WebRTCVADSegmenter
 from src.asr.dual_engine import DualASREngine
 from src.config.asr import ASRConfig
-from src.kws.simple import ExactKWS
+from src.kws.fuzzy import FuzzyKWS
 from src.kws.keywords import load_keywords_with_severity
 from src.action_manager import ActionManager
 from src.config.filter import is_banned, BANNED_HALLUCINATIONS
@@ -136,8 +136,8 @@ def main() -> None:
 
     asr = DualASREngine()
     keywords = load_keywords(Path("config/keywords.txt"))
-    # 類似度スコアは使用せず、かな正規化後の単純一致で検出
-    kws = ExactKWS(keywords)
+    # 類似度ベース（partial_ratio）。短すぎる語は無視して誤検知を抑制
+    kws = FuzzyKWS(keywords, threshold=ASRConfig.KWS_FUZZY_THRESHOLD, min_hira_len=ASRConfig.KWS_MIN_HIRA_LEN)
     action_mgr = ActionManager("assets/alert.wav")
 
     print("=" * 50)
@@ -227,8 +227,8 @@ def main() -> None:
                     # 原文ログ: FAST を追記
                     _append_log_line(role="customer", stage="FAST", entry_id=entry_id, text=fast_text, hits=hits)
                     if hits:
-                        print(f"!! hit: {hits}", flush=True)
-                        action_mgr.play_warning()
+                        # FASTでは警告音を鳴らさず、FINAL確定時に鳴らす（誤検知抑制）
+                        print(f"!! hit (FAST tentative): {hits}", flush=True)
 
                     # FINAL を非同期で実行し、完了時に同一ID行を置換
                     if (not ASRConfig.FINAL_ON_HIT_ONLY) or hits:
@@ -248,6 +248,9 @@ def main() -> None:
                             status = "replaced" if replaced else "append-fallback"
                             if not replaced:
                                 _append_log_line(role="customer", stage="FINAL", entry_id=eid, text=final_text, hits=final_hits)
+                            if final_hits:
+                                print(f"!! hit (FINAL confirmed): {final_hits}", flush=True)
+                                action_mgr.play_warning()
                             print(f"[id {eid}] FINAL {status}: {final_text}", flush=True)
 
                         fut.add_done_callback(_on_done)
