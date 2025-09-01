@@ -89,7 +89,7 @@ class GeminiSummarizer:
         lines.append("与えられた数発話（日本語）のやり取りを読み、次をJSONで出力してください。")
         lines.append("1) ng_word（検知トリガ） 2) turns（そのままエコー）")
         lines.append("3) summary（簡潔な要約） 4) action（店員への推奨対応）")
-        lines.append("5) comfort（被害当事者に寄り添う短い慰めの一言。断定・過度な励ましは避け、落ち着いた丁寧な文体）")
+        lines.append("5) comfort（被害当事者に寄り添う短い慰めの一言。断定・過度な励ましは避け、落ち着いた丁寧な文体。ユーザーに寄り添う形。出力結果に幅を持たせる、様々なバリエーションを考慮）")
         lines.append("出力は日本語。誇張せず、事実ベースで。")
         lines.append(f"\n[トリガ語候補] {ng}\n")
         lines.append("[会話ログ]")
