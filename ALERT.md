@@ -22,9 +22,11 @@ from src.action_manager import ActionManager
 ...
 asr = DualASREngine()
 keywords = load_keywords(Path("config/keywords.txt"))
-from src.kws.simple import ExactKWS
+from src.kws.fuzzy import FuzzyKWS
 ...
-kws = ExactKWS(keywords)
+kws = FuzzyKWS(keywords, threshold=ASRConfig.KWS_FUZZY_THRESHOLD, min_hira_len=ASRConfig.KWS_MIN_HIRA_LEN)
+...
+# 備考: FAST の時点では警告音を鳴らさず、FINAL確定時に鳴動（誤検知を抑制）
 action_mgr = ActionManager("assets/alert.wav")  # ←ここを任意のファイルパスに変更（例: "assets/custom.mp3"）
 
 print("=" * 50)
