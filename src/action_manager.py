@@ -2,19 +2,20 @@
 警告音再生と検出ログの管理モジュール。
 
 提供機能:
-- トリガーワード検出時の「警告音」を非ブロッキングで再生（playsound ベース）。
+- トリガーワード検出時の「警告音」を非ブロッキングで再生（OSネイティブ: winsound/afplay/ffplay/aplay）。
 - 検出ログ（原文・NGワード・役割）を日次ファイルへ追記。
 
 設計方針:
 - .env は使用せず、コード内の設定オブジェクト（AUDIO_CFG）に集約。
 - 再生は別スレッドで行い、メイン処理（ASR/KWS）をブロックしない。
-- playsound が利用できない環境では OS 別に軽量フォールバック（Windows: winsound.Beep / その他: ベル文字）。
+- 再生に失敗した場合は OS 別ビープ（Windows: winsound.Beep / その他: ベル文字）にフォールバック。
 """
 
 import os
 import threading
 from typing import Optional
 import datetime
+from src.audio.playback import AudioPlayer, PlaybackConfig
 
 # ログ出力先
 LOG_DIR = "logs"
@@ -29,13 +30,11 @@ class AudioActionConfig:
     - ActionManager から参照される読み取り専用の意図（コードで変更）。
 
     フィールド:
-    - backend: 文字列。既定は 'playsound'（ロジック上も playsound を最優先）。
     - beep_freq_hz: Windows の winsound.Beep 用の周波数（Hz）。
     - beep_ms: Windows の winsound.Beep 用の持続時間（ms）。
     - use_thread: 再生を別スレッドで行うか（True で非ブロッキング）。
     """
 
-    backend: str = "playsound"
     beep_freq_hz: int = 800
     beep_ms: int = 1000
     use_thread: bool = True
@@ -63,6 +62,8 @@ class ActionManager:
         """
         self.warning_sound_path = warning_sound_path
         self._validate_sound_file()
+        # OSネイティブ再生プレーヤ（設定はコード内で集中管理）
+        self._player = AudioPlayer(PlaybackConfig())
 
     def _validate_sound_file(self) -> None:
         """警告音ファイルの存在を軽く検証し、無ければ警告を表示する。"""
@@ -70,12 +71,12 @@ class ActionManager:
             print(f"[警告] 警告音ファイルが見つかりません: {self.warning_sound_path}")
 
     def play_warning(self) -> None:
-        """警告音を再生する（playsound ベース、フォールバック付き）。
+        """警告音を再生する（OSネイティブ、フォールバック付き）。
 
         処理の流れ（要約）:
         - ファイルパス未指定なら即ビープ。
-        - 指定ありの場合、playsound で同期再生するが、呼び出しは別スレッドで行うため非ブロッキング。
-        - playsound の ImportError/実行時例外は握って、OS 別のビープにフォールバック。
+        - 指定ありの場合、AudioPlayer で同期再生（呼び出しはスレッドで非ブロッキング）。
+        - 失敗時は OS 別のビープへフォールバック。
         """
         print("🚨 [警告音] トリガーワードが検出されました！")
 
@@ -85,14 +86,10 @@ class ActionManager:
             return
 
         def _play():
-            # バックグラウンドでの音声再生処理（同期APIだがスレッドで非ブロッキング化）
-            try:
-                # playsound を最優先で使用
-                from playsound import playsound  # 例外時は下の except でフォールバック
-                playsound(self.warning_sound_path)
-            except Exception as e:
-                # ImportError/OSError/バックエンド未整備など広く捕捉し、安全側に倒す
-                print(f"🚨 [警告音] playsound 再生に失敗: {e}")
+            # バックグラウンドでの音声再生処理（AudioPlayer は同期。スレッドで非ブロッキング化）
+            ok = self._player.play(self.warning_sound_path)
+            if not ok:
+                # 失敗したらビープで確実に通知
                 self._play_beep()
 
         # 別スレッドで実行（メインスレッドをブロックしない）
