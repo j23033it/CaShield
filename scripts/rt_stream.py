@@ -24,7 +24,7 @@ from src.audio.sd_input import SDInput
 from src.vad.webrtc import WebRTCVADSegmenter
 from src.asr.dual_engine import DualASREngine
 from src.config.asr import ASRConfig
-from src.kws.fuzzy import FuzzyKWS
+from src.kws.simple import ExactKWS
 from src.kws.keywords import load_keywords_with_severity
 from src.action_manager import ActionManager
 from src.config.filter import is_banned, BANNED_HALLUCINATIONS
@@ -136,7 +136,8 @@ def main() -> None:
 
     asr = DualASREngine()
     keywords = load_keywords(Path("config/keywords.txt"))
-    kws = FuzzyKWS(keywords, threshold=ASRConfig.KWS_FUZZY_THRESHOLD)
+    # 類似度スコアは使用せず、かな正規化後の単純一致で検出
+    kws = ExactKWS(keywords)
     action_mgr = ActionManager("assets/alert.wav")
 
     print("=" * 50)

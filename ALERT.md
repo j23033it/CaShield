@@ -22,7 +22,9 @@ from src.action_manager import ActionManager
 ...
 asr = DualASREngine()
 keywords = load_keywords(Path("config/keywords.txt"))
-kws = FuzzyKWS(keywords, threshold=ASRConfig.KWS_FUZZY_THRESHOLD)
+from src.kws.simple import ExactKWS
+...
+kws = ExactKWS(keywords)
 action_mgr = ActionManager("assets/alert.wav")  # ←ここを任意のファイルパスに変更（例: "assets/custom.mp3"）
 
 print("=" * 50)
