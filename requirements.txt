@@ -5,3 +5,4 @@ webrtcvad>=2.0.10
 Flask>=2.3
 google-genai>=1.0.0
 pykakasi>=2.3
+rapidfuzz>=3.0.0
