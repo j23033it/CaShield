@@ -22,12 +22,13 @@ class ASRConfig:
     FAST_BEAM = 2
 
     # --- FINAL stage（高精度確定） ---
-    # 使用モデル名（高精度モデルを推奨）
-    FINAL_MODEL = "large-v3"
+    # 使用モデル名（高精度モデルを推奨）。Raspberry Pi 等の省メモリ環境では base/ small を推奨。
+    FINAL_MODEL = "base"
     # 計算精度（GPU があるなら float16 を検討）
     FINAL_COMPUTE = "int8"
     # ビームサーチ幅（大きいほど精度は上がるが遅くなる）
-    FINAL_BEAM = 5
+    # Piでは負荷を抑えるため 3 程度から調整
+    FINAL_BEAM = 3
 
     # --- 共通 ASR パラメータ ---
     # 推論デバイス（"cpu" / "cuda"）
@@ -56,9 +57,10 @@ class ASRConfig:
 
     # --- FINAL 実行制御 ---
     # FINAL を並列実行するワーカ数（スレッドプールの最大数）
-    FINAL_MAX_WORKERS = 2
+    # Piではピークメモリを抑えるため 1 を推奨
+    FINAL_MAX_WORKERS = 1
     # True にすると KWS ヒット時のみ FINAL を走らせる（遅延/負荷削減）。
-    # HDMI抜去以外にも、FINALモデルの常時実行がメモリ圧迫・強制終了を招く環境向けの安全策。
+    # FINALモデルの常時実行がメモリ圧迫・強制終了を招く環境向けの安全策。
     FINAL_ON_HIT_ONLY = True
 
     # --- KWS（キーワード検出） ---
