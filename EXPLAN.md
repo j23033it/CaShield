@@ -8,7 +8,7 @@
 src/
   audio/sd_input.py      # 低レイテンシ音声入力（sounddevice）
   asr/dual_engine.py     # faster-whisper 二段ラッパ（FAST/FINAL）
-  kws/simple.py          # かな正規化 + 単純一致（類似度スコアなし）の KWS
+  kws/fuzzy.py           # かな正規化 + 類似度（rapidfuzz.partial_ratio）の KWS（最小長・高しきい値で保守運用）
   kws/keywords.py        # keywords.txt の読み込みと深刻度マップ
   vad/webrtc.py          # WebRTC VAD による発話区間抽出
   action_manager.py      # 警告音・ログ処理（非ブロッキング, OSネイティブ再生）
@@ -41,7 +41,7 @@ README.md, TECHNOLOGIES.md, explan.md, requirements.txt
   - `asr/`
     - `dual_engine.py`: `faster-whisper` を使った二段ラッパ（FAST→FINAL）。PCM16→float32 変換、非同期FINAL実行。
   - `kws/`
-    - `simple.py`: 認識テキストをひらがな化し、`keywords.txt` の各語と「単純な部分一致」で照合（類似度なし）。
+    - `fuzzy.py`: 認識テキストをひらがな化し、rapidfuzz の partial_ratio による近似一致で照合。最小長と高めのしきい値で誤検知を抑制。
     - `keywords.py`: `keywords.txt` を解析し、キーワード一覧と深刻度マップを返す（レベル記法は複数行対応、2段階制）。
   - `llm/`
     - `client_gemini.py`: Gemini クライアント。`GeminiSummarizer` と `LLMConfig` を提供し、コード内設定（APIキー・モデル名・温度・最大トークン・リトライ）で構成。要約のJSONスキーマを定義し、severity は任意（保存時は keywords の既定値を採用）。
@@ -90,8 +90,9 @@ README.md, TECHNOLOGIES.md, explan.md, requirements.txt
    - `faster-whisper`（CTranslate2）で日→日（`language="ja"`）認識  
    - 二段構成：FAST=`small(int8, beam=2)` / FINAL=`large-v3(int8, beam=5)`（コードで固定）
 
-4. **KWS**（`src/kws/simple.py`）  
-   - かな正規化 + 類似度スコアを使わない**単純な部分一致**。深刻度は `config/keywords.txt` のレベル定義に基づく。
+4. **KWS**（`src/kws/fuzzy.py`）  
+   - かな正規化 + `rapidfuzz.partial_ratio` の**部分一致**。深刻度は `config/keywords.txt` のレベル定義に基づく。
+   - 誤検知抑制: しきい値は保守的（例: 90）、短すぎる語は無視。警告音は FINAL 確定時のみ。
    - 代表的なハルシネーション（配信締めのあいさつ等）はコードで除外
 
 5. **原文ログ追記**（`scripts/rt_stream.py`）  
