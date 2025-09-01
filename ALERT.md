@@ -237,8 +237,6 @@ with out_path.open("a", encoding="utf-8") as f:
 - 追加依存は極力不要に設計しています（Windows + `.wav` 推奨）。
 - 将来の拡張に備え、ログ/要約のI/Oは1ファイル1日・JSONL（要約）を採用しています。
 
-<<<<<<< HEAD
-=======
 ---
 
 ## 7) Raspberry Pi ヘッドレス運用（HDMI 抜去時の強制終了対策）
@@ -251,4 +249,29 @@ with out_path.open("a", encoding="utf-8") as f:
 - 追加の運用上の推奨:
   - `tmux`/`screen` 上で実行しておく（端末切断の影響を遮断）
   - `systemd` 化して常駐・自動再起動・ログ集約を有効化
->>>>>>> parent of de469e5 (HDMI抜去時の強制終了対策の記述を削除)
+---
+
+## 8) ホットプラグと自動再起動（入力デバイスの生存監視）
+
+- 目的: USB マイクやHDMIキャプチャの抜き差し時も監視を継続させる。
+- 実装: `scripts/rt_stream.py` で入力の生存監視を行い、一定時間コールバックが無ければ安全に再起動します。
+  - しきい値は `RTStreamConfig.HOTPLUG_LIVENESS_TIMEOUT_S`（秒）で調整可能。
+  - 明示デバイスで起動できない場合は `FALLBACK_TO_DEFAULT=True` なら OS 既定にフォールバックします。
+
+関連コード（抜粋）:
+
+```python
+class RTStreamConfig:
+    INPUT_DEVICE: Optional[int | str] = None
+    HOTPLUG_LIVENESS_TIMEOUT_S: float = 2.0
+    RESTART_BACKOFF_S: float = 1.0
+    FALLBACK_TO_DEFAULT: bool = True
+
+...
+
+if (not sd_in.is_active()) or (
+    sd_in.time_since_last_callback() > RTStreamConfig.HOTPLUG_LIVENESS_TIMEOUT_S
+):
+    _ensure_input_started()
+    continue
+```
