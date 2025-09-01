@@ -14,6 +14,7 @@
 
 from collections import deque
 from typing import Deque, Optional
+import time
 
 import numpy as np
 import sounddevice as sd
@@ -48,6 +49,7 @@ class SDInput:
         self.max_blocks = max(1, max_ms // self.block_ms)
         self._buf: Deque[bytes] = deque(maxlen=self.max_blocks)  # 音声チャンクを積むリングバッファ
         self._stream: Optional[sd.RawInputStream] = None         # 実体の入力ストリーム
+        self._last_cb_ts: Optional[float] = None                 # 直近のコールバック時刻（liveness 判定用）
 
     def start(self, device: Optional[int] = None) -> None:
         """音声入力ストリームを開始する。
@@ -68,6 +70,8 @@ class SDInput:
             # PCM16 の C バッファを Python の bytes にパックして追記
             # bytes() はバッファコピーを伴うが、20ms単位なら負荷は軽微
             self._buf.append(bytes(indata))
+            # liveness: 最終コールバック時刻を記録
+            self._last_cb_ts = time.perf_counter()
 
         # 指定デバイス（またはデフォルト）で RawInputStream を作成
         self._stream = sd.RawInputStream(
@@ -113,6 +117,21 @@ class SDInput:
         self._buf.clear()
         # チャンク群を連結（PCM16の連結なので後段でそのまま扱える）
         return b"".join(chunks)
+
+    # --- 追加: ホットプラグ検知用の補助API ---
+    def time_since_last_callback(self) -> float:
+        """最後に PortAudio コールバックが呼ばれてからの経過秒を返す。
+
+        どんな関数か:
+        - liveness チェック用の単純な経過時間を提供します。未開始時など記録が無い場合は大きな値を返します。
+        """
+        if self._last_cb_ts is None:
+            return 1e9
+        return max(0.0, time.perf_counter() - self._last_cb_ts)
+
+    def is_active(self) -> bool:
+        """ストリームが存在するかの簡易判定（PortAudio内部状態には依存しない）。"""
+        return self._stream is not None
 
 
 
