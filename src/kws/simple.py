@@ -66,3 +66,32 @@ def _to_hiragana(text: str) -> str:
     except Exception:  # noqa: BLE001
         return text
 
+
+class ExactKWS:
+    """
+    かな正規化後の「単純一致（部分文字列）」で NG ワードを検出するクラス。
+
+    どんなクラスか:
+    - 類似度スコア（rapidfuzz など）は使わず、ひらがなに正規化した本文に、
+      ひらがな化した各キーワードが「含まれているか」を判定します。
+
+    使い方:
+    - `kws = ExactKWS(["ばか", "しね"])` のように初期化し、
+      `kws.detect("…") -> [ヒットした元キーワードの配列]` を利用します。
+    """
+
+    def __init__(self, keywords: list[str]) -> None:
+        # 元のキーワード（表示/ログ用）と、照合用のひらがな化キーワードを保持
+        self.keywords = keywords
+        self.keywords_hira = [_to_hiragana(k) for k in keywords]
+
+    def detect(self, text: str) -> list[str]:
+        """本文をひらがな化し、部分文字列一致でヒットを返す。"""
+        hira = _to_hiragana(text)
+        hits: list[str] = []
+        for orig, hira_kw in zip(self.keywords, self.keywords_hira):
+            if not hira_kw:
+                continue
+            if hira_kw in hira:
+                hits.append(orig)
+        return hits
