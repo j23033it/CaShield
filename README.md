@@ -19,7 +19,7 @@
 - **音声認識 (ASR)**: `faster-whisper` (CTranslate2) をCPU (int8) で高速に実行。
 - **キーワード検出 (KWS)**: 認識テキストをかな正規化し、rapidfuzz の部分一致スコアで NG を判定（既定しきい値は保守的に高め）。
   - 誤検知抑制のため、短すぎる語は無視（最小長設定）。
-  - 警告音は FINAL 確定時のみ鳴動（FAST では鳴らさない）。
+  - 警告音は FAST 段階で鳴動（FINAL でも再確認して鳴動）。
   - 既知のハルシネーション（例: 「ご視聴ありがとうございました」「ありがとうございました」等）はコード内フィルタで除外。
 - **VAD (音声区間検出)**: `webrtc-vad` を使用し、無音区間をカット。
 - **警告音再生**: `assets/alert.wav` を再生（OSネイティブ: Windows=winsound, macOS=afplay, Linux=ffplay/aplay）。非ブロッキング・設定はコード内。

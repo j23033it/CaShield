@@ -26,7 +26,7 @@ from src.kws.fuzzy import FuzzyKWS
 ...
 kws = FuzzyKWS(keywords, threshold=ASRConfig.KWS_FUZZY_THRESHOLD, min_hira_len=ASRConfig.KWS_MIN_HIRA_LEN)
 ...
-# 備考: FAST の時点では警告音を鳴らさず、FINAL確定時に鳴動（誤検知を抑制）
+# 備考: FAST 段階で警告音を鳴らします（現場抑止を優先）。FINAL確定時にも再度鳴動します。
 action_mgr = ActionManager("assets/alert.wav")  # ←ここを任意のファイルパスに変更（例: "assets/custom.mp3"）
 
 print("=" * 50)

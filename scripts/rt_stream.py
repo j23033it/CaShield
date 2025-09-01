@@ -227,8 +227,9 @@ def main() -> None:
                     # 原文ログ: FAST を追記
                     _append_log_line(role="customer", stage="FAST", entry_id=entry_id, text=fast_text, hits=hits)
                     if hits:
-                        # FASTでは警告音を鳴らさず、FINAL確定時に鳴らす（誤検知抑制）
-                        print(f"!! hit (FAST tentative): {hits}", flush=True)
+                        # FAST 段階での検知でも即座に通知音を鳴らす（現場抑止を優先）
+                        print(f"!! hit (FAST): {hits}", flush=True)
+                        action_mgr.play_warning()
 
                     # FINAL を非同期で実行し、完了時に同一ID行を置換
                     if (not ASRConfig.FINAL_ON_HIT_ONLY) or hits:
