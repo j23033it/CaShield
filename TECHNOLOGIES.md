@@ -6,7 +6,7 @@
 # 使用技術一覧（最新版）
 
 本プロジェクトで利用している主要技術と使用箇所をまとめます。  
-**実行フロー**：`sounddevice` → `WebRTC VAD` → `faster-whisper（二段: FAST/FINAL）` → `KWS（かな正規化 + rapidfuzz 部分一致）` → 原文ログ → **Gemini 要約** → Web 表示（SSE）
+**実行フロー**：`sounddevice` → `WebRTC VAD` → `faster-whisper（二段: FAST/FINAL）` → `KWS（かな正規化 + 単純一致）` → 原文ログ → **Gemini 要約** → Web 表示（SSE）
 
 ---
 
@@ -18,7 +18,7 @@
 | **CTranslate2** | 高速推論エンジン（faster-whisper のバックエンド） | 〃 |
 | **sounddevice** | 低レイテンシ音声入力（RawInputStream） | `src/audio/sd_input.py`, `scripts/rt_stream.py` |
 | **webrtcvad** | 音声区間検出（VAD）／無い場合はフォールバック | `src/vad/webrtc.py`, `scripts/rt_stream.py` |
-| **pykakasi / rapidfuzz** | かな正規化 + fuzzy 部分一致（KWS 前処理・判定） | `src/kws/fuzzy.py` |
+| **pykakasi** | かな正規化（KWS 前処理）+ 単純一致 | `src/kws/simple.py` |
 | **Flask** | Web API / テンプレート / SSE（ログの追記配信） | `webapp/app.py`, `webapp/templates/*` |
 | **google-genai** | Gemini クライアント（構造化JSON生成） | `src/llm/client_gemini.py` |
 
