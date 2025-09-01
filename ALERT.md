@@ -4,7 +4,7 @@
 
 前提:
 - .env は使用しません。すべての設定は「コード内設定」で集中管理しています。
-- 依存追加は不要です（ただし Windows で `.wav` 以外を再生する場合は `pygame` が必要になることがあります）。
+- 依存追加は不要です。音声再生は OS ネイティブ（Windows: winsound / macOS: afplay / Linux: ffplay/aplay）で行います。
 
 ---
 
@@ -37,8 +37,8 @@ print("Ctrl+C to stop\n")
 ```
 
 備考（Windows）:
-- `.wav` なら追加ライブラリなしで確実に鳴ります。
-- `.mp3` など `.wav` 以外の場合は `pygame` が必要になる場合があります（`src/action_manager.py` が自動的にフォールバック処理を行います）。
+- `.wav` なら追加ライブラリなしで確実に鳴ります（winsound）。
+- `.mp3` など `.wav` 以外は未サポートです（Windowsでは winsound 制約のため）。
 
 ---
 
