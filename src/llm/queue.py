@@ -118,6 +118,7 @@ class LLMJobRunner:
             # 未設定時も 2 を既定として保存
             "severity": int(job.severity) if job.severity else 2,
             "action": res.action,
+            "comfort": res.comfort,
             "meta": {
                 "model": self.summarizer.model,
                 "created_at": now,

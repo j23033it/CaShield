@@ -48,7 +48,7 @@ class GeminiSummarizer:
         self.cfg = cfg or LLMConfig()
         self.client = genai.Client(api_key=self.api_key)
 
-        # 返却 JSON のスキーマ（severity は任意項目）
+        # 返却 JSON のスキーマ（severity は任意。comfort は短い慰めの一言）
         self._schema = types.Schema(
             type=types.Type.OBJECT,
             properties={
@@ -68,8 +68,9 @@ class GeminiSummarizer:
                 "summary": types.Schema(type=types.Type.STRING),
                 "severity": types.Schema(type=types.Type.INTEGER),  # 任意
                 "action": types.Schema(type=types.Type.STRING),
+                "comfort": types.Schema(type=types.Type.STRING),
             },
-            required=["ng_word", "turns", "summary", "action"],
+            required=["ng_word", "turns", "summary", "action", "comfort"],
         )
 
         self._gen_config = types.GenerateContentConfig(
@@ -88,6 +89,7 @@ class GeminiSummarizer:
         lines.append("与えられた数発話（日本語）のやり取りを読み、次をJSONで出力してください。")
         lines.append("1) ng_word（検知トリガ） 2) turns（そのままエコー）")
         lines.append("3) summary（簡潔な要約） 4) action（店員への推奨対応）")
+        lines.append("5) comfort（被害当事者に寄り添う短い慰めの一言。断定・過度な励ましは避け、落ち着いた丁寧な文体）")
         lines.append("出力は日本語。誇張せず、事実ベースで。")
         lines.append(f"\n[トリガ語候補] {ng}\n")
         lines.append("[会話ログ]")
@@ -130,7 +132,7 @@ class GeminiSummarizer:
 
                 data = json.loads(text)
                 # 必須キーの存在を軽くチェック（severity は任意）
-                for k in ("ng_word", "turns", "summary", "action"):
+                for k in ("ng_word", "turns", "summary", "action", "comfort"):
                     if k not in data:
                         raise KeyError(f"missing required key: {k}")
                 # severity が無ければ補完（後段では job.severity を優先利用）
@@ -168,6 +170,8 @@ class _ResultAdapter:
         # 2段階制に合わせて 1..2 の範囲にクリップ
         self.severity: int = min(2, max(1, sev))
         self.action: str = data.get("action", "")
+        # 慰めの言葉（欠落時は控えめな定型文で補完）
+        self.comfort: str = (data.get("comfort") or "大丈夫ですよ。深呼吸して、まずは落ち着きましょう。")
 
 
 class _TurnAdapter:
