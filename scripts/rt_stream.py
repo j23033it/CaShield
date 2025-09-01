@@ -5,9 +5,15 @@ scripts/rt_stream.py
 
 - 設定はコード内オブジェクトで集中管理（.envは使用しない）
 - 入力デバイス指定もコード内定数で管理（環境変数依存を廃止）
+
+安定化対応（HDMI抜去・端末切断対策 / ランタイム例外耐性）:
+- SIGHUP を無視してヘッドレス運用時の強制終了を防止
+- 1発話処理を try/except で保護し、想定外の例外でもループ継続
 """
 
 import re
+import contextlib
+import signal  # SIGHUP 無視による強制終了対策
 import time
 from concurrent.futures import Future
 from datetime import datetime
@@ -92,6 +98,11 @@ def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
 def main() -> None:
+    # --- ヘッドレス運用時の強制終了対策（SIGHUP 無視） ---
+    # HDMI 抜去 / SSH 切断等で端末セッションが落ちた場合に SIGHUP が来ても無視する。
+    with contextlib.suppress(Exception):
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)  # type: ignore[attr-defined]
+
     # Code-based configuration (no .env/YAML for ASR)
     sample_rate = ASRConfig.SAMPLE_RATE
     block_ms = ASRConfig.BLOCK_MS
@@ -136,59 +147,63 @@ def main() -> None:
             # VADに投入
             utterances = vad.feed(chunk)
             for utt in utterances:
-                # 発話終了時刻
-                eos_t = time.perf_counter()
-                utt_ms = len(utt) / (sample_rate * 2) * 1000.0
+                try:
+                    # 発話終了時刻
+                    eos_t = time.perf_counter()
+                    utt_ms = len(utt) / (sample_rate * 2) * 1000.0
 
-                # FAST ASR (synchronous)
-                asr_t0 = time.perf_counter()
-                fast_text = asr.transcribe_fast(utt, channels=1)
-                
-                # ▼▼▼ ハルシネーションフィルタ（FAST）▼▼▼
-                if is_banned(fast_text):
-                    print(f"[フィルタ] 幻覚(FAST)を検出、無視します: {fast_text}")
-                    continue  # これ以降の処理をスキップして次のutteranceへ
-                # ▲▲▲ フィルタここまで ▲▲▲
+                    # FAST ASR (synchronous)
+                    asr_t0 = time.perf_counter()
+                    fast_text = asr.transcribe_fast(utt, channels=1)
 
-                asr_t1 = time.perf_counter()
+                    # ▼▼▼ ハルシネーションフィルタ（FAST）▼▼▼
+                    if is_banned(fast_text):
+                        print(f"[フィルタ] 幻覚(FAST)を検出、無視します: {fast_text}")
+                        continue  # これ以降の処理をスキップして次のutteranceへ
+                    # ▲▲▲ フィルタここまで ▲▲▲
 
-                # KWS
-                hits = kws.detect(fast_text)
-                e2e_ms = (time.perf_counter() - eos_t) * 1000.0
-                asr_ms = (asr_t1 - asr_t0) * 1000.0
+                    asr_t1 = time.perf_counter()
 
-                entry_id = _next_entry_id()
-                print(
-                    f"[utt {utt_ms:.0f}ms] FAST asr={asr_ms:.0f}ms e2e={e2e_ms:.0f}ms id={entry_id} text={fast_text}",
-                    flush=True,
-                )
-                # 原文ログ: FAST を追記
-                _append_log_line(role="customer", stage="FAST", entry_id=entry_id, text=fast_text, hits=hits)
-                if hits:
-                    print(f"!! hit: {hits}", flush=True)
-                    action_mgr.play_warning()
+                    # KWS
+                    hits = kws.detect(fast_text)
+                    e2e_ms = (time.perf_counter() - eos_t) * 1000.0
+                    asr_ms = (asr_t1 - asr_t0) * 1000.0
 
-                # FINAL を非同期で実行し、完了時に同一ID行を置換
-                if (not ASRConfig.FINAL_ON_HIT_ONLY) or hits:
-                    fut: Future[str] = asr.submit_final(utt, channels=1)
+                    entry_id = _next_entry_id()
+                    print(
+                        f"[utt {utt_ms:.0f}ms] FAST asr={asr_ms:.0f}ms e2e={e2e_ms:.0f}ms id={entry_id} text={fast_text}",
+                        flush=True,
+                    )
+                    # 原文ログ: FAST を追記
+                    _append_log_line(role="customer", stage="FAST", entry_id=entry_id, text=fast_text, hits=hits)
+                    if hits:
+                        print(f"!! hit: {hits}", flush=True)
+                        action_mgr.play_warning()
 
-                    def _on_done(f: Future[str], eid: str = entry_id) -> None:
-                        try:
-                            final_text: str = f.result()
-                        except Exception as e:  # noqa: BLE001
-                            final_text = f"<FINAL_ERROR: {e}>"
-                        # ▼▼▼ ハルシネーションフィルタ（FINAL）▼▼▼
-                        if is_banned(final_text):
-                            print(f"[フィルタ] 幻覚(FINAL)を検出、無視します: {final_text}")
-                            return
-                        final_hits = kws.detect(final_text)
-                        replaced = _replace_log_line(eid, role="customer", new_stage="FINAL", text=final_text, hits=final_hits)
-                        status = "replaced" if replaced else "append-fallback"
-                        if not replaced:
-                            _append_log_line(role="customer", stage="FINAL", entry_id=eid, text=final_text, hits=final_hits)
-                        print(f"[id {eid}] FINAL {status}: {final_text}", flush=True)
+                    # FINAL を非同期で実行し、完了時に同一ID行を置換
+                    if (not ASRConfig.FINAL_ON_HIT_ONLY) or hits:
+                        fut: Future[str] = asr.submit_final(utt, channels=1)
 
-                    fut.add_done_callback(_on_done)
+                        def _on_done(f: Future[str], eid: str = entry_id) -> None:
+                            try:
+                                final_text: str = f.result()
+                            except Exception as e:  # noqa: BLE001
+                                final_text = f"<FINAL_ERROR: {e}>"
+                            # ▼▼▼ ハルシネーションフィルタ（FINAL）▼▼▼
+                            if is_banned(final_text):
+                                print(f"[フィルタ] 幻覚(FINAL)を検出、無視します: {final_text}")
+                                return
+                            final_hits = kws.detect(final_text)
+                            replaced = _replace_log_line(eid, role="customer", new_stage="FINAL", text=final_text, hits=final_hits)
+                            status = "replaced" if replaced else "append-fallback"
+                            if not replaced:
+                                _append_log_line(role="customer", stage="FINAL", entry_id=eid, text=final_text, hits=final_hits)
+                            print(f"[id {eid}] FINAL {status}: {final_text}", flush=True)
+
+                        fut.add_done_callback(_on_done)
+                except Exception as exc:
+                    # 想定外例外でも監視を継続する（HDMI/デバイス周りの一過性障害を含む）
+                    print(f"[エラー] 発話処理中に例外: {exc}", flush=True)
 
     except KeyboardInterrupt:
         pass

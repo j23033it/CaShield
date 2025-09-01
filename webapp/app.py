@@ -243,4 +243,8 @@ def stream_logs(date):
     return Response(stream_with_context(generate()), mimetype='text/event-stream', headers={"Cache-Control": "no-cache"})
 
 if __name__ == "__main__":
+    # ヘッドレス運用時の強制終了対策（SIGHUP 無視）
+    import signal, contextlib  # noqa: PLC0415
+    with contextlib.suppress(Exception):
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)  # type: ignore[attr-defined]
     app.run(host="0.0.0.0", port=5000, debug=False)

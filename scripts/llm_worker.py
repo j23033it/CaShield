@@ -102,6 +102,10 @@ async def amain() -> None:
 
 
 if __name__ == "__main__":
+    # ヘッドレス運用時の強制終了対策（SIGHUP 無視）
+    import signal, contextlib  # noqa: PLC0415
+    with contextlib.suppress(Exception):
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)  # type: ignore[attr-defined]
     try:
         asyncio.run(amain())
     except KeyboardInterrupt:
