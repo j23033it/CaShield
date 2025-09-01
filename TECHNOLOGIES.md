@@ -22,7 +22,7 @@
 | **Flask** | Web API / テンプレート / SSE（ログの追記配信） | `webapp/app.py`, `webapp/templates/*` |
 | **google-genai** | Gemini クライアント（構造化JSON生成） | `src/llm/client_gemini.py` |
 
-> 備考：`pygame / winsound` を使う構成もありますが、現行は `action_manager.py` による警告音再生（OS依存）で簡素化しています。
+> 備考：警告音再生は `playsound` ベースに統一し、`action_manager.py` で非ブロッキング再生します（.env 不使用・コード内設定）。
 
 ---
 
