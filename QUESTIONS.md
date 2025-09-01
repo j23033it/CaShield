@@ -32,6 +32,6 @@
 **Q7. 音声認識やLLMによる要約の“範囲・時間”のセクションはどのようになっていますか？**
 
 **A7.** 2段構えで制御しています。いずれも「コード内設定オブジェクト」で集中管理しており、`.env`は使用しません。
-- **音声認識の区間化（VAD前段）**: `src/config/asr.py` の `ASRConfig` にて、フレーム長 `BLOCK_MS=30`、VAD攻撃性 `VAD_AGGRESSIVENESS=2`、および発話検出時の前後パディング `PAD_PREV_MS=200` / `PAD_POST_MS=300` を指定し、無音を除外しつつ発話の頭切れ・末尾欠けを避けています。
+- **音声認識の区間化（VAD前段）**: `src/config/asr.py` の `ASRConfig` にて、フレーム長 `BLOCK_MS=20`、VAD攻撃性 `VAD_AGGRESSIVENESS=1`、および発話検出時の前後パディング `PAD_PREV_MS=240` / `PAD_POST_MS=500` を指定し、無音を除外しつつ発話の頭切れ・末尾欠けを避けています。
 - **LLM要約の窓取り**: `src/llm/windowing.py` の `build_window` と、`src/llm/queue.py` の `WindowConfig` により管理します。初期はNGワード行の前後±2発話を取り、そこから最低 `min_sec=12秒` に達するまで前後に拡張します。上限は `max_sec=30秒` と `max_tokens=512` の両方を満たすように端から削減します。基点の時刻は `anchor_time` として保持し、抽出範囲の行インデックスもメタ情報に保存します。
 - 変更したい場合は、`ASRConfig` と `WindowConfig` のクラス属性を書き換えるだけで反映されます（再起動時に有効）。

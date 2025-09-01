@@ -19,7 +19,8 @@ class ASRConfig:
     # 推論の計算精度（CPU: int8/int8_float16、GPU: float16 など）
     FAST_COMPUTE = "int8"
     # ビームサーチ幅（小さいほど速いが、誤りやすくなる）
-    FAST_BEAM = 2
+    # Pi等でも遅延影響が小さい範囲で精度を底上げ（2→3）
+    FAST_BEAM = 3
 
     # --- FINAL stage（高精度確定） ---
     # 使用モデル名（高精度モデルを推奨）。Raspberry Pi 等の省メモリ環境では base/ small を推奨。
@@ -27,8 +28,8 @@ class ASRConfig:
     # 計算精度（GPU があるなら float16 を検討）
     FINAL_COMPUTE = "int8"
     # ビームサーチ幅（大きいほど精度は上がるが遅くなる）
-    # Piでは負荷を抑えるため 3 程度から調整
-    FINAL_BEAM = 3
+    # baseモデルでも確定精度を上げるため 4 を採用（並列=1のまま）
+    FINAL_BEAM = 4
 
     # --- 共通 ASR パラメータ ---
     # 推論デバイス（"cpu" / "cuda"）
@@ -48,12 +49,15 @@ class ASRConfig:
     # オーディオのサンプルレート（Whisper は 16kHz が標準）
     SAMPLE_RATE = 16000
     # 入力フレーム長（ミリ秒）。20〜30ms 程度が一般的
-    BLOCK_MS = 30
+    # 語尾/語頭の取りこぼしを減らす目的で分解能を上げる（30→20ms）
+    BLOCK_MS = 20
     # WebRTC VAD の攻撃性（0〜3：大きいほど“非音声”に厳しい）
-    VAD_AGGRESSIVENESS = 2
+    # 切り過ぎを抑えるため 2→1 に緩和
+    VAD_AGGRESSIVENESS = 1
     # 発話検出時に前後へ付与するパディング（ミリ秒）
-    PAD_PREV_MS = 200
-    PAD_POST_MS = 300
+    # 文頭/文末の欠落を抑える（200→240ms / 300→500ms）
+    PAD_PREV_MS = 240
+    PAD_POST_MS = 500
 
     # --- FINAL 実行制御 ---
     # FINAL を並列実行するワーカ数（スレッドプールの最大数）

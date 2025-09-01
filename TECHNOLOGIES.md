@@ -44,7 +44,7 @@
 - **CPU 環境**：`device=cpu` / `compute_type=int8`（既定）  
 - **GPU（CUDA）**：`device=cuda` / `compute_type=float16` を推奨  
 - **ASR 設定（コード内）**：`src/config/asr.py` に FAST/FINAL のモデル・ビーム・VAD 等を集約  
-  - FAST = `small (int8, beam=2)` / FINAL = `large-v3 (int8, beam=5)`（既定）  
+  - FAST = `small (int8, beam=3)` / FINAL = `base (int8, beam=4)`（コード内既定・Pi向け安定設定）  
 - **Gemini モデル**：`.env` は使用せず、`src/llm/client_gemini.py` の `self.model` に直接記述（例：`gemini-2.5-flash-lite`）
 
 ---
