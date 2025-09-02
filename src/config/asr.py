@@ -23,12 +23,12 @@ class ASRConfig:
     FAST_BEAM = 3
 
     # --- FINAL stage（高精度確定） ---
-    # 使用モデル名（高精度モデルを推奨）。Raspberry Pi 等の省メモリ環境では base/ small を推奨。
-    FINAL_MODEL = "base"
+    # 使用モデル名: medium（精度重視。CPU/int8運用ではFINAL_MAX_WORKERS=1を推奨）
+    FINAL_MODEL = "medium"
     # 計算精度（GPU があるなら float16 を検討）
     FINAL_COMPUTE = "int8"
     # ビームサーチ幅（大きいほど精度は上がるが遅くなる）
-    # baseモデルでも確定精度を上げるため 4 を採用（並列=1のまま）
+    # medium モデルでは 4 程度から開始（遅延と精度のバランス）
     FINAL_BEAM = 4
 
     # --- 共通 ASR パラメータ ---

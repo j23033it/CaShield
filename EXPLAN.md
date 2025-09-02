@@ -88,7 +88,7 @@ README.md, TECHNOLOGIES.md, explan.md, requirements.txt
 
 3. **ASR**（`src/asr/dual_engine.py`）  
    - `faster-whisper`（CTranslate2）で日→日（`language="ja"`）認識  
-   - 二段構成：FAST=`small(int8, beam=3)` / FINAL=`base(int8, beam=4)`（コード内設定）
+   - 二段構成：FAST=`small(int8, beam=3)` / FINAL=`medium(int8, beam=4)`（コード内設定）
 
 4. **KWS**（`src/kws/fuzzy.py`）  
    - かな正規化 + `rapidfuzz.partial_ratio` の**部分一致**。深刻度は `config/keywords.txt` のレベル定義に基づく。
