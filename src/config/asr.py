@@ -1,35 +1,25 @@
 class ASRConfig:
     """
-    二段ASR（FAST/FINAL）用のコード内設定クラス。
+    単一段 ASR 用のコード内設定クラス。
 
     - .env は使用せず、本クラスのクラス属性（定数）で全て管理します。
     - 参照箇所:
-      - `src/asr/dual_engine.py`（モデル読み込み・推論パラメータ）
+      - `src/asr/single_engine.py`（モデル読み込み・推論パラメータ）
       - `scripts/rt_stream.py`（ストリーミング入出力、VAD、KWS）
 
     設定の考え方:
-    - FAST は“即時性優先”の軽量設定、FINAL は“精度優先”の重量設定にします。
+    - 単一モデルで即時性と精度を両立させ、ビーム幅などのパラメータを調整します。
     - CPU 前提では `compute_type=int8` が高速・省メモリ。GPU(CUDA)なら `float16` を推奨。
     - 本番環境で変更したいのは主にモデル名・ビーム幅・デバイス種別です。
     """
 
-    # --- FAST stage（低遅延プレビュー） ---
+    # --- ASR 推論設定 ---
     # 使用モデル名（faster-whisper のモデル識別子）
-    FAST_MODEL = "small"
+    MODEL_NAME = "medium"
     # 推論の計算精度（CPU: int8/int8_float16、GPU: float16 など）
-    FAST_COMPUTE = "int8"
-    # ビームサーチ幅（小さいほど速いが、誤りやすくなる）
-    # Pi等でも遅延影響が小さい範囲で精度を底上げ（2→3）
-    FAST_BEAM = 3
-
-    # --- FINAL stage（高精度確定） ---
-    # 使用モデル名: medium（精度重視。CPU/int8運用ではFINAL_MAX_WORKERS=1を推奨）
-    FINAL_MODEL = "medium"
-    # 計算精度（GPU があるなら float16 を検討）
-    FINAL_COMPUTE = "int8"
+    COMPUTE_TYPE = "int8"
     # ビームサーチ幅（大きいほど精度は上がるが遅くなる）
-    # medium モデルでは 4 程度から開始（遅延と精度のバランス）
-    FINAL_BEAM = 4
+    BEAM_SIZE = 4
 
     # --- 共通 ASR パラメータ ---
     # 推論デバイス（"cpu" / "cuda"）
@@ -58,14 +48,6 @@ class ASRConfig:
     # 文頭/文末の欠落を抑える（200→240ms / 300→500ms）
     PAD_PREV_MS = 240
     PAD_POST_MS = 500
-
-    # --- FINAL 実行制御 ---
-    # FINAL を並列実行するワーカ数（スレッドプールの最大数）
-    # Piではピークメモリを抑えるため 1 を推奨
-    FINAL_MAX_WORKERS = 1
-    # True にすると KWS ヒット時のみ FINAL を走らせる（遅延/負荷削減）。
-    # FINALモデルの常時実行がメモリ圧迫・強制終了を招く環境向けの安全策。
-    FINAL_ON_HIT_ONLY = True
 
     # --- KWS（キーワード検出） ---
     # かな正規化 + 類似度ベース（rapidfuzz.partial_ratio）で検出。

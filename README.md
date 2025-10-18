@@ -19,7 +19,7 @@
 - **音声認識 (ASR)**: `faster-whisper` (CTranslate2) をCPU (int8) で高速に実行。
 - **キーワード検出 (KWS)**: 認識テキストをかな正規化し、rapidfuzz の部分一致スコアで NG を判定（既定しきい値は保守的に高め）。
   - 誤検知抑制のため、短すぎる語は無視（最小長設定）。
-  - 警告音は FAST 段階で鳴動（FINAL でも再確認して鳴動）。
+  - 警告音は ASR 結果が NG ワードを含む場合に即座に鳴動。
   - 既知のハルシネーション（例: 「ご視聴ありがとうございました」「ありがとうございました」等）はコード内フィルタで除外。
 - **VAD (音声区間検出)**: `webrtc-vad` を使用し、無音区間をカット。
 - **警告音再生**: `assets/alert.wav` を再生（OSネイティブ: Windows=winsound, macOS=afplay, Linux=ffplay/aplay）。非ブロッキング・設定はコード内。
@@ -132,7 +132,7 @@ python -m webapp.app
 - 集中管理: `src/config/filter.py`
 - 除外対象: 「ご視聴ありがとうございました」「ありがとうございました」など、締めの定型文（完全一致）
 - 適用箇所:
-  - `scripts/rt_stream.py` の FAST/FINAL 双方（ログ書き出し前に除外）
+  - `scripts/rt_stream.py` の ASR 結果（ログ追記前に除外）
   - `webapp/app.py` の `parse_log_line`（保険として表示前に除外）
 
 > [!NOTE]
@@ -172,7 +172,7 @@ python -m webapp.app
 │   ├── llm_worker.py         # LLM要約ワーカー
 │   └── create_alert_sound.py # 警告音生成
 ├── src/
-│   ├── asr/dual_engine.py    # 二段ASR（FAST/FINAL）
+│   ├── asr/single_engine.py  # 単一段ASRエンジン
 │   ├── audio/sd_input.py     # 低レイテンシ音声入力
 │   ├── kws/simple.py         # キーワード検出
 │   ├── llm/client_gemini.py  # Geminiクライアント

@@ -1,7 +1,7 @@
 """
 scripts/rt_stream.py
 
-リアルタイム監視（VAD → ASR(FAST/FINAL) → KWS → ログ追記 → 警告音）。
+リアルタイム監視（VAD → ASR → KWS → ログ追記 → 警告音）。
 
 - 設定はコード内オブジェクトで集中管理（.envは使用しない）
 - 入力デバイスは名称部分一致の運用も想定し、ホットプラグを踏まえた再起動制御を実装
@@ -11,29 +11,32 @@ scripts/rt_stream.py
 - 音声入力の生存監視（コールバック無応答/非アクティブ）で自動再起動
 """
 
-import re
+from __future__ import annotations
+
 import contextlib
+import re
 import signal  # SIGHUP 無視による強制終了対策
 import time
-from concurrent.futures import Future
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional
 
+from src.action_manager import ActionManager
 from src.audio.sd_input import SDInput
-from src.vad.webrtc import WebRTCVADSegmenter
-from src.asr.dual_engine import DualASREngine
 from src.config.asr import ASRConfig
+from src.config.filter import BANNED_HALLUCINATIONS, is_banned
 from src.kws.fuzzy import FuzzyKWS
 from src.kws.keywords import load_keywords_with_severity
-from src.action_manager import ActionManager
-from src.config.filter import is_banned, BANNED_HALLUCINATIONS
+from src.asr.single_engine import SingleASREngine
+from src.vad.webrtc import WebRTCVADSegmenter
+
 
 LOG_DIR = Path("logs")
+ASR_STAGE_LABEL = "ASR"
 
-# --- コード内設定オブジェクト（集中管理） ---
+
 class RTStreamConfig:
-    """リアルタイム音声監視の設定
+    """リアルタイム音声監視の設定。
 
     どんなクラスか:
     - RTストリーム固有の運用パラメータを一箇所に集約する設定コンテナです。
@@ -50,10 +53,10 @@ class RTStreamConfig:
     RESTART_BACKOFF_S: float = 1.0
     FALLBACK_TO_DEFAULT: bool = True
 
-# ▼▼▼ 幻覚（ハルシネーション）定型文のフィルタ（集中管理: src/config/filter.py） ▼▼▼
 
 def _append_log_line(role: str, stage: str, entry_id: str, text: str, hits: List[str]) -> None:
-    """Append one line to logs/YYYY-MM-DD.txt with stage + [ID:xxxx]."""
+    """文字起こし結果を1行追記する補助関数。"""
+
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     date = datetime.now().strftime("%Y-%m-%d")
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -67,52 +70,23 @@ _ID_COUNTER = 0
 
 
 def _next_entry_id() -> str:
+    """ログ行の ID（ゼロパディング 6桁）を循環採番する。"""
+
     global _ID_COUNTER
     _ID_COUNTER = (_ID_COUNTER + 1) % 1000000
     return f"{_ID_COUNTER:06d}"
 
 
-def _replace_log_line(entry_id: str, role: str, new_stage: str, text: str, hits: List[str]) -> bool:
-    """Replace the first line containing [ID:entry_id] with the FINAL result.
-
-    Keeps original timestamp; overwrites content after the role marker.
-    Returns True if replaced.
-    """
-    date = datetime.now().strftime("%Y-%m-%d")
-    p = LOG_DIR / f"{date}.txt"
-    if not p.exists():
-        return False
-    who = "店員" if role == "clerk" else "客"
-    ng = f" [NG: {', '.join(hits)}]" if hits else ""
-    pat = re.compile(r"^\[(?P<ts>[^\]]+)\]\s+%s:\s+.*\[ID:%s\].*$" % (re.escape(who), re.escape(entry_id)))
-    lines = p.read_text(encoding="utf-8").splitlines(True)
-    replaced = False
-    for i, line in enumerate(lines):
-        m = pat.match(line)
-        if not m:
-            continue
-        ts = m.group("ts")
-        lines[i] = f"[{ts}] {who}: [{new_stage}] [ID:{entry_id}] {text}{ng}\n"
-        replaced = True
-        break
-    if replaced:
-        p.write_text("".join(lines), encoding="utf-8")
-    return replaced
-
 def load_keywords(path: Path) -> List[str]:
-    """キーワード一覧（KWS用）を取得。
+    """キーワード一覧（KWS用）を取得。"""
 
-    仕様:
-    - config/keywords.txt は level 形式/1行1語形式のどちらにも対応
-    - ここでは KWS に必要な語彙配列のみ返す（深刻度は llm_worker で利用）
-    """
     keywords, _sev_map = load_keywords_with_severity(path)
     return keywords
 
-def ensure_dir(p: Path) -> None:
-    p.mkdir(parents=True, exist_ok=True)
 
 def main() -> None:
+    """リアルタイム音声監視のエントリーポイント。"""
+
     # --- ヘッドレス運用時の強制終了対策（SIGHUP 無視） ---
     # HDMI 抜去 / SSH 切断等で端末セッションが落ちた場合に SIGHUP が来ても無視する。
     with contextlib.suppress(Exception):
@@ -134,7 +108,7 @@ def main() -> None:
         post_ms=post_ms,
     )
 
-    asr = DualASREngine()
+    asr = SingleASREngine()
     keywords = load_keywords(Path("config/keywords.txt"))
     # 類似度ベース（partial_ratio）。短すぎる語は無視して誤検知を抑制
     kws = FuzzyKWS(keywords, threshold=ASRConfig.KWS_FUZZY_THRESHOLD, min_hira_len=ASRConfig.KWS_MIN_HIRA_LEN)
@@ -143,15 +117,16 @@ def main() -> None:
     print("=" * 50)
     print("CaShield RT stream - start")
     print(
-        f"FAST={ASRConfig.FAST_MODEL}({ASRConfig.FAST_COMPUTE}, beam={ASRConfig.FAST_BEAM}) "
-        f"FINAL={ASRConfig.FINAL_MODEL}({ASRConfig.FINAL_COMPUTE}, beam={ASRConfig.FINAL_BEAM}) "
+        f"ASR={ASRConfig.MODEL_NAME}({ASRConfig.COMPUTE_TYPE}, beam={ASRConfig.BEAM_SIZE}) "
         f"Device={ASRConfig.DEVICE}"
     )
     print(f"Keywords: {', '.join(keywords)}")
     print("Ctrl+C to stop\n")
 
     # 入力ストリームの安全な開始/再起動関数（ホットプラグ耐性あり）
-    def _ensure_input_started():
+    def _ensure_input_started() -> None:
+        """音声入力ストリームを安全に再起動する。"""
+
         try:
             sd_in.stop()
         except Exception:
@@ -166,7 +141,7 @@ def main() -> None:
             except Exception as e2:
                 if RTStreamConfig.FALLBACK_TO_DEFAULT:
                     print(
-                        f"[audio] retry failed: {e2}. using default device after {RTStreamConfig.RESTART_BACKOFF_S*2}s"
+                        f"[audio] retry failed: {e2}. using default device after {RTStreamConfig.RESTART_BACKOFF_S * 2}s"
                     )
                     time.sleep(RTStreamConfig.RESTART_BACKOFF_S * 2)
                     sd_in.start(device=None)
@@ -198,64 +173,41 @@ def main() -> None:
             utterances = vad.feed(chunk)
             for utt in utterances:
                 try:
-                    # 発話終了時刻
-                    eos_t = time.perf_counter()
+                    eos_t = time.perf_counter()  # 発話終了 time stamp
                     utt_ms = len(utt) / (sample_rate * 2) * 1000.0
 
-                    # FAST ASR (synchronous)
+                    # 単一段の ASR（同期実行）
                     asr_t0 = time.perf_counter()
-                    fast_text = asr.transcribe_fast(utt, channels=1)
+                    text = asr.transcribe(utt, channels=1)
 
-                    # ▼▼▼ ハルシネーションフィルタ（FAST）▼▼▼
-                    if is_banned(fast_text):
-                        print(f"[フィルタ] 幻覚(FAST)を検出、無視します: {fast_text}")
+                    # ▼▼▼ ハルシネーションフィルタ ▼▼▼
+                    if is_banned(text):
+                        print(f"[フィルタ] 幻覚(ASR)を検出、無視します: {text}")
                         continue  # これ以降の処理をスキップして次のutteranceへ
                     # ▲▲▲ フィルタここまで ▲▲▲
 
                     asr_t1 = time.perf_counter()
 
-                    # KWS
-                    hits = kws.detect(fast_text)
+                    # キーワード検出
+                    hits = kws.detect(text)
                     e2e_ms = (time.perf_counter() - eos_t) * 1000.0
                     asr_ms = (asr_t1 - asr_t0) * 1000.0
 
                     entry_id = _next_entry_id()
                     print(
-                        f"[utt {utt_ms:.0f}ms] FAST asr={asr_ms:.0f}ms e2e={e2e_ms:.0f}ms id={entry_id} text={fast_text}",
+                        f"[utt {utt_ms:.0f}ms] ASR={asr_ms:.0f}ms e2e={e2e_ms:.0f}ms id={entry_id} text={text}",
                         flush=True,
                     )
-                    # 原文ログ: FAST を追記
-                    _append_log_line(role="customer", stage="FAST", entry_id=entry_id, text=fast_text, hits=hits)
+                    # 原文ログ: ASR を追記
+                    _append_log_line(role="customer", stage=ASR_STAGE_LABEL, entry_id=entry_id, text=text, hits=hits)
+
                     if hits:
-                        # FAST 段階での検知でも即座に通知音を鳴らす（現場抑止を優先）
-                        print(f"!! hit (FAST): {hits}", flush=True)
+                        print(f"!! hit (ASR): {hits}", flush=True)
                         action_mgr.play_warning()
-
-                    # FINAL を非同期で実行し、完了時に同一ID行を置換
-                    if (not ASRConfig.FINAL_ON_HIT_ONLY) or hits:
-                        fut: Future[str] = asr.submit_final(utt, channels=1)
-
-                        def _on_done(f: Future[str], eid: str = entry_id) -> None:
-                            try:
-                                final_text: str = f.result()
-                            except Exception as e:  # noqa: BLE001
-                                final_text = f"<FINAL_ERROR: {e}>"
-                            # ▼▼▼ ハルシネーションフィルタ（FINAL）▼▼▼
-                            if is_banned(final_text):
-                                print(f"[フィルタ] 幻覚(FINAL)を検出、無視します: {final_text}")
-                                return
-                            final_hits = kws.detect(final_text)
-                            replaced = _replace_log_line(eid, role="customer", new_stage="FINAL", text=final_text, hits=final_hits)
-                            status = "replaced" if replaced else "append-fallback"
-                            if not replaced:
-                                _append_log_line(role="customer", stage="FINAL", entry_id=eid, text=final_text, hits=final_hits)
-                            if final_hits:
-                                print(f"!! hit (FINAL confirmed): {final_hits}", flush=True)
-                                action_mgr.play_warning()
-                            print(f"[id {eid}] FINAL {status}: {final_text}", flush=True)
-
-                        fut.add_done_callback(_on_done)
-                except Exception as exc:
+                        action_mgr.log_detection(hits, text, role="customer")
+                    else:
+                        action_mgr.log_detection([], text, role="customer")
+                except Exception as exc:  # noqa: BLE001
                     # 想定外例外でも監視を継続する（HDMI/デバイス周りの一過性障害を含む）
                     print(f"[エラー] 発話処理中に例外: {exc}", flush=True)
 
@@ -263,6 +215,7 @@ def main() -> None:
         pass
     finally:
         sd_in.stop()
+        asr.close()
         print("bye")
 
 

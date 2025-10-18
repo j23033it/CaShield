@@ -6,7 +6,7 @@
 # 使用技術一覧（最新版）
 
 本プロジェクトで利用している主要技術と使用箇所をまとめます。  
-**実行フロー**：`sounddevice` → `WebRTC VAD` → `faster-whisper（二段: FAST/FINAL）` → `KWS（かな正規化 + 類似度（partial_ratio））` → 原文ログ → **Gemini 要約** → Web 表示（SSE）
+**実行フロー**：`sounddevice` → `WebRTC VAD` → `faster-whisper` → `KWS（かな正規化 + 類似度（partial_ratio））` → 原文ログ → **Gemini 要約** → Web 表示（SSE）
 
 ---
 
@@ -14,7 +14,7 @@
 
 | ライブラリ/モジュール | 概要 | 主な使用ファイル |
 |---|---|---|
-| **faster-whisper** | Whisper を CTranslate2 バックエンドで高速実行（FAST/FINAL 二段） | `src/asr/dual_engine.py` |
+| **faster-whisper** | Whisper を CTranslate2 バックエンドで高速実行（単一段） | `src/asr/single_engine.py` |
 | **CTranslate2** | 高速推論エンジン（faster-whisper のバックエンド） | 〃 |
 | **sounddevice** | 低レイテンシ音声入力（RawInputStream） | `src/audio/sd_input.py`, `scripts/rt_stream.py` |
 | **webrtcvad** | 音声区間検出（VAD）／無い場合はフォールバック | `src/vad/webrtc.py`, `scripts/rt_stream.py` |
@@ -35,7 +35,7 @@
 | **os / pathlib** | ファイル・環境変数 | 全般 |
 | **json** | JSONL入出力 | `src/llm/queue.py`, Web API |
 | — | — | — |
-| **numpy** | PCM16→float32 変換など | `src/asr/dual_engine.py`, VADフォールバック |
+| **numpy** | PCM16→float32 変換など | `src/asr/single_engine.py`, VADフォールバック |
 
 ---
 
@@ -43,8 +43,8 @@
 
 - **CPU 環境**：`device=cpu` / `compute_type=int8`（既定）  
 - **GPU（CUDA）**：`device=cuda` / `compute_type=float16` を推奨  
-- **ASR 設定（コード内）**：`src/config/asr.py` に FAST/FINAL のモデル・ビーム・VAD 等を集約  
-  - FAST = `small (int8, beam=3)` / FINAL = `medium (int8, beam=4)`（コード内既定）  
+- **ASR 設定（コード内）**：`src/config/asr.py` にモデル・ビーム・VAD 等を集約  
+  - 既定: `medium (int8, beam=4)`  
 - **Gemini モデル**：`.env` は使用せず、`src/llm/client_gemini.py` の `self.model` に直接記述（例：`gemini-2.5-flash-lite`）
 
 ---
@@ -88,7 +88,7 @@
 
 - Gemini モデル名・温度など: `src/llm/client_gemini.py` の `self.model` / `self.temperature`
 - LLMの出力最大トークンやリトライ等: `src/llm/client_gemini.py` の `LLMConfig` クラス
-- ASR（FAST/FINAL）のモデル・ビーム・VAD: `src/config/asr.py` の `ASRConfig` クラス
+- ASR（単一段）のモデル・ビーム・VAD: `src/config/asr.py` の `ASRConfig` クラス
 - 要約ウィンドウ関連の閾値（秒数やトークン）: `src/llm/queue.py` 内の定数・既定値
 
 

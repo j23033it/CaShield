@@ -20,20 +20,19 @@
 ```python
 from src.action_manager import ActionManager
 ...
-asr = DualASREngine()
+asr = SingleASREngine()
 keywords = load_keywords(Path("config/keywords.txt"))
 from src.kws.fuzzy import FuzzyKWS
 ...
 kws = FuzzyKWS(keywords, threshold=ASRConfig.KWS_FUZZY_THRESHOLD, min_hira_len=ASRConfig.KWS_MIN_HIRA_LEN)
 ...
-# 備考: FAST 段階で警告音を鳴らします（現場抑止を優先）。FINAL確定時にも再度鳴動します。
+# 備考: ASR 結果で NG ワードが見つかれば即座に警告音を鳴動します。
 action_mgr = ActionManager("assets/alert.wav")  # ←ここを任意のファイルパスに変更（例: "assets/custom.mp3"）
 
 print("=" * 50)
 print("CaShield RT stream - start")
 print(
-    f"FAST={ASRConfig.FAST_MODEL}({ASRConfig.FAST_COMPUTE}, beam={ASRConfig.FAST_BEAM}) "
-    f"FINAL={ASRConfig.FINAL_MODEL}({ASRConfig.FINAL_COMPUTE}, beam={ASRConfig.FINAL_BEAM}) "
+    f"ASR={ASRConfig.MODEL_NAME}({ASRConfig.COMPUTE_TYPE}, beam={ASRConfig.BEAM_SIZE}) "
     f"Device={ASRConfig.DEVICE}"
 )
 print(f"Keywords: {', '.join(keywords)}")
@@ -125,34 +124,6 @@ def _append_log_line(role: str, stage: str, entry_id: str, text: str, hits: List
     ng = f" [NG: {', '.join(hits)}]" if hits else ""
     line = f"[{ts}] {who}: [{stage}] [ID:{entry_id}] {text}{ng}\n"
     (LOG_DIR / f"{date}.txt").open("a", encoding="utf-8").write(line)  # ←ファイル名を変更する場合はここ
-
-
-def _replace_log_line(entry_id: str, role: str, new_stage: str, text: str, hits: List[str]) -> bool:
-    """Replace the first line containing [ID:entry_id] with the FINAL result.
-
-    Keeps original timestamp; overwrites content after the role marker.
-    Returns True if replaced.
-    """
-    date = datetime.now().strftime("%Y-%m-%d")
-    p = LOG_DIR / f"{date}.txt"  # ←ここ
-    if not p.exists():
-        return False
-    who = "店員" if role == "clerk" else "客"
-    ng = f" [NG: {', '.join(hits)}]" if hits else ""
-    pat = re.compile(r"^\[(?P<ts>[^\]]+)\]\s+%s:\s+.*\[ID:%s\].*$" % (re.escape(who), re.escape(entry_id)))
-    lines = p.read_text(encoding="utf-8").splitlines(True)
-    replaced = False
-    for i, line in enumerate(lines):
-        m = pat.match(line)
-        if not m:
-            continue
-        ts = m.group("ts")
-        lines[i] = f"[{ts}] {who}: [{new_stage}] [ID:{entry_id}] {text}{ng}\n"
-        replaced = True
-        break
-    if replaced:
-        p.write_text("".join(lines), encoding="utf-8")
-    return replaced
 ```
 
 2) 原文ログの追記（保険） — `src/action_manager.py`

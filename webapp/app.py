@@ -52,10 +52,10 @@ def parse_log_line(line: str):
     """1行の生ログテキストを表示用の辞書へ変換する関数。
 
     期待する原文フォーマット（例）:
-      [YYYY-MM-DD HH:MM:SS] 客: [FAST] [ID:000001] こんにちは [NG: 土下座]
+      [YYYY-MM-DD HH:MM:SS] 客: [ASR] [ID:000001] こんにちは [NG: 土下座]
 
     画面表示要件:
-      - 文字起こし本文のみを表示（[FAST]/[FINAL]/[ID:xxxx] は非表示）
+      - 文字起こし本文のみを表示（[ASR]/[ID:xxxx] は非表示）
       - [NG: …] は本文内に残して表示する（強調は is_ng で実施）
       - 空行、時刻のみの行、本文が空（タグだけ）の行は除外
       - 取得日時（timestamp）は保持し、メタ情報として表示
@@ -89,8 +89,8 @@ def parse_log_line(line: str):
         role = "customer"
         text_part = rest[len("客:"):].lstrip()
 
-    # 先頭のタグ類（[FAST]/[FINAL] や [ID:xxxx] など）を除去
-    # 例: "[FINAL] [ID:000123] こんにちは" → "こんにちは"
+    # 先頭のタグ類（[ASR] や [ID:xxxx] など）を除去
+    # 例: "[ASR] [ID:000123] こんにちは" → "こんにちは"
     # 先頭で繰り返し除去（タグが複数連続している場合に対応）
     while True:
         m = re.match(r"^\[(?:[A-Z]+|ID:[^\]]+)\]\s*", text_part)
