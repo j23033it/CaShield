@@ -16,6 +16,7 @@ import threading
 from typing import Optional
 import datetime
 from src.audio.playback import AudioPlayer, PlaybackConfig
+from src.notification.line_bot import LineBotNotifier
 
 # ログ出力先
 LOG_DIR = "logs"
@@ -50,7 +51,7 @@ class ActionManager:
 
     目的:
     - `play_warning()` で警告音を非ブロッキング再生。
-    - `log_detection()` で検出内容を日次ファイルに追記。
+    - `log_detection()` で検出内容を日次ファイルに追記し、必要に応じて LINE Bot へ通知。
     """
 
     def __init__(self, warning_sound_path: Optional[str] = None):
@@ -64,6 +65,8 @@ class ActionManager:
         self._validate_sound_file()
         # OSネイティブ再生プレーヤ（設定はコード内で集中管理）
         self._player = AudioPlayer(PlaybackConfig())
+        # LINE Bot 通知ヘルパー（設定未完了時は内部でスキップする）
+        self._line_notifier = LineBotNotifier()
 
     def _validate_sound_file(self) -> None:
         """警告音ファイルの存在を軽く検証し、無ければ警告を表示する。"""
@@ -131,14 +134,16 @@ class ActionManager:
         処理:
             コンソールへ情報を出力しつつ、`logs/YYYY-MM-DD.txt` へ1行追記する。
             例外は握って処理継続する。
+            NG ワード検出時は LineBotNotifier 経由で LINE へ即時通知を試みる。
         """
         print(f"[ログ] 検出ワード: {detected_words}")
         print(f"[ログ] 全文: {full_text}")
 
         # 日次ログファイルへ追記
+        now = datetime.datetime.now()
         try:
-            date_str = datetime.datetime.now().strftime("%Y-%m-%d")
-            ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            date_str = now.strftime("%Y-%m-%d")
+            ts = now.strftime("%Y-%m-%d %H:%M:%S")
             role_prefix = "客:" if role == "customer" else "店員:"
             ng_part = f" [NG:{','.join(detected_words)}]" if detected_words else ""
             line = f"[{ts}] {role_prefix} {full_text}{ng_part}\n"
@@ -146,3 +151,16 @@ class ActionManager:
                 f.write(line)
         except Exception as e:
             print(f"[ログ] ファイル書き込み失敗: {e}")
+
+        if detected_words:
+            # NG ワードが検出された場合のみ LINE 通知を実施（誤検知時の通知過多を防ぐ）。
+            self._notify_line(now, detected_words, full_text)
+
+    def _notify_line(self, detected_at: datetime.datetime, detected_words: list, full_text: str) -> None:
+        """LINE Bot 通知ヘルパーを呼び出す内部メソッド。"""
+        # 例外は LineBotNotifier 側で握る想定。ここでは可読性重視で委譲。
+        self._line_notifier.send_detection_alert(
+            detected_at=detected_at,
+            detected_words=detected_words,
+            full_text=full_text,
+        )
