@@ -15,7 +15,7 @@ class ASRConfig:
 
     # --- ASR 推論設定 ---
     # 使用モデル名（faster-whisper のモデル識別子）
-    MODEL_NAME = "medium"
+    MODEL_NAME = "base"
     # 推論の計算精度（CPU: int8/int8_float16、GPU: float16 など）
     COMPUTE_TYPE = "int8"
     # ビームサーチ幅（大きいほど精度は上がるが遅くなる）
