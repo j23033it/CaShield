@@ -182,6 +182,12 @@ python -m webapp.app
 │   ├── app.py                # Flask Webサーバー
 │   ├── static/               # 画像・音声ファイル
 │   └── templates/            # HTMLテンプレート
+├── docs/
+│   ├── TECHNOLOGIES.md
+│   ├── QUESTIONS.md
+│   ├── EXPLAN.md
+│   ├── ALERT.md
+│   └── AGENTS.md
 ├── （APIキーはコード内設定: src/llm/client_gemini.py）
 ├── main.py
 ├── requirements.txt
@@ -203,6 +209,13 @@ python -m webapp.app
     - `Turn`/`Snippet` モデル、`parse_line()`、`build_window()`（`min_sec`/`max_sec`/`max_tokens`を満たすよう拡張）。
   - `queue.py`: LLM 要約ジョブの実行と保存。
     - `Job` と `WindowConfig`、`LLMJobRunner` を提供。窓取り→要約→`logs/summaries/<date>.jsonl` へ1行追記。エラーは `*.errors.log` に保存。
+
+- `docs/`
+  - `TECHNOLOGIES.md`: 採用技術の一覧と利用箇所、推奨モデル設定などの補足情報。
+  - `QUESTIONS.md`: 発表・デモ向けのQ&Aカンペ。レイテンシやNGワード運用の要点を整理。
+  - `EXPLAN.md`: 詳細なディレクトリ構成、データフロー、各ファイルの責務をまとめたリファレンス。
+  - `ALERT.md`: 警告音・通知音・入力デバイス・ログ命名など運用時に変更しやすい項目の設定手順。
+  - `AGENTS.md`: 開発支援AIが守るべき方針やドキュメント編集ルールを明記したガイド。
 
 ### 起動（3プロセス／別ターミナル or tmux）
 
